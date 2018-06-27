@@ -9,9 +9,10 @@ DEPLOY_TXHASH = 'deployTxHash'
 AUDIT_TXHASH = 'auditTxHash'
 VALID_STATUS_KEYS = [STATUS, DEPLOY_TXHASH, AUDIT_TXHASH]
 
-STATUS_PENDING='pending'
-STATUS_ACTIVE='active'
-STATUS_INACTIVE='inactive'
+STATUS_PENDING = 'pending'
+STATUS_ACTIVE = 'active'
+STATUS_INACTIVE = 'inactive'
+STATUS_REJECTED = 'rejected'
 
 
 class Governance(IconScoreBase):
@@ -20,9 +21,11 @@ class Governance(IconScoreBase):
 
     _MAP_ADDRESS = {
         '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32',
+        '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32',
     }
     _MAP_TXHASH = {
-        'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32': '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27'
+        'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32': '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
+        'cx222222222f5b45bfaea8cff1d8232fbb6122ec32': '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
     }
 
     def __init__(self, db: IconScoreDatabase, addr_owner: Address) -> None:
@@ -121,9 +124,22 @@ class Governance(IconScoreBase):
         else:
             self.revert('Invalid txHash')
         Logger.debug(f'rejectScore: score_address = "{score_address}", reason = {reason}', TAG)
+        # check next: it should be 'pending'
+        result = self.getScoreStatus(score_address)
+        try:
+            next_status = result[NEXT][STATUS]
+            if next_status != STATUS_PENDING:
+                self.revert(f'Invalid status: next is {next_status}')
+        except KeyError:
+            self.revert('Invalid status: no next status')
         # next: pending -> rejected
         _next = self._get_next_status(score_address)
-        _next[STATUS] = 'rejected'
+        status = {
+            STATUS: STATUS_REJECTED,
+            DEPLOY_TXHASH: txHash,
+            AUDIT_TXHASH: self.tx.hash
+        }
+        self._save_status(_next, status)
 
     @external
     def selfRevoke(self):

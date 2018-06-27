@@ -62,8 +62,10 @@ class JsonRpcHelper:
 
 GOVERNANCE = 'cx5cdb9522e8e3a7a1ef829913c6cc1da2af9db17f'
 SCORE_VALID_ADDR = 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32'
+SCORE_VALID_ADDR2 = 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32'
 SCORE_INVALID_ADDR = 'cx1234567890123456789012345678901234567890'
 VALID_TXHASH='0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27'
+VALID_TXHASH2='0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27'
 INVALID_TXHASH='0x0000000000000000000000000000000000000000000000000000000123456789'
 
 
@@ -97,4 +99,26 @@ class TestGovernance(unittest.TestCase):
         self.assertEqual(result['current']['status'], 'active')
         self.assertIsNotNone(result['current']['deployTxHash'])
         self.assertIsNotNone(result['current']['auditTxHash'])
-        # self.assertRaises(KeyError, result['next'])
+        self.assertEqual(result.get('next'), None)
+
+    def test_2_rejectScore(self):
+        result = self.score_sendTx.rejectScore(txHash=INVALID_TXHASH, reason='too many loops')
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid txHash')
+        # NOTE: this should fail since the txHash has been already accepted.
+        result = self.score_sendTx.rejectScore(txHash=VALID_TXHASH, reason='too many loops')
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid status: no next status')
+        # reject another Score that is under pending (success case)
+        result = self.score_sendTx.rejectScore(txHash=VALID_TXHASH2, reason='too many loops')
+        self.assertEqual(result['status'], hex(1))
+        # verify the written status
+        result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR2)
+        self.assertEqual(result['next']['status'], 'rejected')
+        self.assertIsNotNone(result['next']['deployTxHash'])
+        self.assertIsNotNone(result['next']['auditTxHash'])
+        self.assertEqual(result.get('current'), None)
+        # sendTx for accepting the rejected Score (SHOULD FAIL)
+        result = self.score_sendTx.acceptScore(txHash=VALID_TXHASH2)
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid status: next is rejected')
