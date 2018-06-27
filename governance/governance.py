@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Governance'
+TAG = '*** Governance ***'
 
 CURRENT = 'current'
 NEXT = 'next'
@@ -8,6 +8,10 @@ STATUS = 'status'
 DEPLOY_TXHASH = 'deployTxHash'
 AUDIT_TXHASH = 'auditTxHash'
 VALID_STATUS_KEYS = [STATUS, DEPLOY_TXHASH, AUDIT_TXHASH]
+
+STATUS_PENDING='pending'
+STATUS_ACTIVE='active'
+STATUS_INACTIVE='inactive'
 
 
 class Governance(IconScoreBase):
@@ -33,7 +37,7 @@ class Governance(IconScoreBase):
 
     @external(readonly=True)
     def getScoreStatus(self, address: Address):  # TODO: add dict type hint
-        tx_hash = self._MAP_TXHASH[str(address)]
+        tx_hash = self._MAP_TXHASH[str(address)]  # TODO: replace with real func
         if tx_hash is None:
             self.revert('SCORE not found')
         result = {}
@@ -48,10 +52,11 @@ class Governance(IconScoreBase):
         if count1 + count2 == 0:
             # there is no status information, build initial status
             status = {
-                STATUS: 'pending',
+                STATUS: STATUS_PENDING,
                 DEPLOY_TXHASH: tx_hash
             }
             result[NEXT] = status
+            # self._save_status(_next, status)  # put is not allowed here!
         return result
 
     @staticmethod
@@ -65,23 +70,60 @@ class Governance(IconScoreBase):
                 count += 1
         return count, status
 
+    @staticmethod
+    def _save_status(db: DictDB, status: dict) -> None:
+        Logger.debug(f'_save_status: status="{status}"', TAG)
+        for key in VALID_STATUS_KEYS:
+            value = status[key]
+            if value:
+                db[key] = value
+
+    @staticmethod
+    def _remove_status(db: DictDB) -> None:
+        for key in VALID_STATUS_KEYS:
+            value = db[key]
+            if value:
+                del db[key]
+
     @external
     def acceptScore(self, txHash: str):
-        # get score address with txHash
-        score_address = Address.from_string(self._MAP_ADDRESS[txHash])  # TODO: replace with real func
+        # TODO: replace with real func
+        if txHash in self._MAP_ADDRESS:
+            score_address = Address.from_string(self._MAP_ADDRESS[txHash])
+        else:
+            self.revert('Invalid txHash')
         Logger.debug(f'acceptScore: score_address = "{score_address}"', TAG)
-        # next: pending -> current: active
-        self._remove_next(score_address)
-        current = self._get_current_status(score_address)
-        current[STATUS] = 'active'
+        # check next: it should be 'pending'
+        result = self.getScoreStatus(score_address)
+        try:
+            next_status = result[NEXT][STATUS]
+            if next_status != STATUS_PENDING:
+                self.revert(f'Invalid status: next is {next_status}')
+        except KeyError:
+            self.revert('Invalid status: no next status')
+        # next: pending -> null
+        _next = self._get_next_status(score_address)
+        self._remove_status(_next)
+        # current: null -> active
+        _current = self._get_current_status(score_address)
+        status = {
+            STATUS: STATUS_ACTIVE,
+            DEPLOY_TXHASH: txHash,
+            AUDIT_TXHASH: self.tx.hash
+        }
+        self._save_status(_current, status)
 
     @external
     def rejectScore(self, txHash: str, reason: str):
-        score_address = Address.from_string(self._MAP_ADDRESS[txHash])  # TODO: replace with real func
+        # TODO: replace with real func
+        if txHash in self._MAP_ADDRESS:
+            score_address = Address.from_string(self._MAP_ADDRESS[txHash])
+        else:
+            self.revert('Invalid txHash')
         Logger.debug(f'rejectScore: score_address = "{score_address}", reason = {reason}', TAG)
-        # next: pending -> next: rejected
-        next = self._get_next_status(score_address)
-        next[STATUS] = 'rejected'
+        # next: pending -> rejected
+        _next = self._get_next_status(score_address)
+        _next[STATUS] = 'rejected'
 
     @external
     def selfRevoke(self):
@@ -100,6 +142,3 @@ class Governance(IconScoreBase):
 
     def _get_next_status(self, score_address: Address):
         return self._score_status[score_address][NEXT]
-
-    def _remove_next(self, score_address: Address) -> None:
-        pass
