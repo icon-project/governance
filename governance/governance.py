@@ -77,8 +77,11 @@ class Governance(IconScoreBase):
 
     @external(readonly=True)
     def getScoreStatus(self, address: Address) -> dict:
-        tx_hash = self._MAP_TXHASH[str(address)]  # TODO: replace with real func
-        if tx_hash is None:
+        # check score address
+        # TODO: replace with real func
+        if str(address) in self._MAP_TXHASH:
+            tx_hash = self._MAP_TXHASH[str(address)]
+        else:
             self.revert('SCORE not found')
         result = {}
         _current = self._get_current_status(address)

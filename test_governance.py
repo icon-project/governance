@@ -88,7 +88,7 @@ class TestGovernance(unittest.TestCase):
         self.assertIsNotNone(result['next']['deployTxHash'])
         # error expected
         error = self.score_call.getScoreStatus(address=SCORE_INVALID_ADDR)
-        self.assertEqual(error['code'], -32000)
+        self.assertEqual(error['message'], 'SCORE not found')
 
     def test_1_acceptScore_negative(self):
         result = self.score_sendTx.acceptScore(txHash=VALID_TXHASH)
