@@ -18,6 +18,7 @@ STATUS_REJECTED = 'rejected'
 class Governance(IconScoreBase):
 
     _SCORE_STATUS = 'score_status'
+    _AUDITOR_LIST = 'auditor_list'
 
     # TODO: replace with real func
     _MAP_ADDRESS = {
@@ -32,9 +33,12 @@ class Governance(IconScoreBase):
     def __init__(self, db: IconScoreDatabase, addr_owner: Address) -> None:
         super().__init__(db, addr_owner)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=str, depth=3)
+        self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
+        # add genesis into initial auditor
+        self._auditor_list.put(Address.from_string('hx' + '0'*40))  # TODO: replace with the real genesis
 
     def on_update(self) -> None:
         super().on_update()
@@ -97,6 +101,11 @@ class Governance(IconScoreBase):
 
     @external
     def acceptScore(self, txHash: str):
+        # check message sender
+        Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
+        if self.msg.sender not in self._auditor_list:
+            self.revert(f'Invalid sender: no permission')
+        # check txHash
         # TODO: replace with real func
         if txHash in self._MAP_ADDRESS:
             score_address = Address.from_string(self._MAP_ADDRESS[txHash])
@@ -125,6 +134,11 @@ class Governance(IconScoreBase):
 
     @external
     def rejectScore(self, txHash: str, reason: str):
+        # check message sender
+        Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
+        if self.msg.sender not in self._auditor_list:
+            self.revert(f'Invalid sender: no permission')
+        # check txHash
         # TODO: replace with real func
         if txHash in self._MAP_ADDRESS:
             score_address = Address.from_string(self._MAP_ADDRESS[txHash])

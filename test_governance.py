@@ -60,6 +60,7 @@ class JsonRpcHelper:
         return func
 
 
+GENESIS = 'hx0000000000000000000000000000000000000000'
 GOVERNANCE = 'cx5cdb9522e8e3a7a1ef829913c6cc1da2af9db17f'
 SCORE_VALID_ADDR = 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32'
 SCORE_VALID_ADDR2 = 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32'
@@ -72,6 +73,7 @@ INVALID_TXHASH='0x00000000000000000000000000000000000000000000000000000001234567
 class TestGovernance(unittest.TestCase):
     score_call = JsonRpcHelper(to=GOVERNANCE, method='icx_call')
     score_sendTx = JsonRpcHelper(to=GOVERNANCE)
+    score_sendTxByGenesis = JsonRpcHelper(from_=GENESIS, to=GOVERNANCE)
 
     def setUp(self):
         pass
@@ -88,11 +90,16 @@ class TestGovernance(unittest.TestCase):
         error = self.score_call.getScoreStatus(address=SCORE_INVALID_ADDR)
         self.assertEqual(error['code'], -32000)
 
-    def test_1_acceptScore(self):
-        result = self.score_sendTx.acceptScore(txHash=INVALID_TXHASH)
+    def test_1_acceptScore_negative(self):
+        result = self.score_sendTx.acceptScore(txHash=VALID_TXHASH)
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid sender: no permission')
+        result = self.score_sendTxByGenesis.acceptScore(txHash=INVALID_TXHASH)
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid txHash')
-        result = self.score_sendTx.acceptScore(txHash=VALID_TXHASH)
+
+    def test_1_acceptScore(self):
+        result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH)
         self.assertEqual(result['status'], hex(1))
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR)
@@ -101,16 +108,21 @@ class TestGovernance(unittest.TestCase):
         self.assertIsNotNone(result['current']['auditTxHash'])
         self.assertEqual(result.get('next'), None)
 
-    def test_2_rejectScore(self):
+    def test_2_rejectScore_negative(self):
         result = self.score_sendTx.rejectScore(txHash=INVALID_TXHASH, reason='too many loops')
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid sender: no permission')
+        result = self.score_sendTxByGenesis.rejectScore(txHash=INVALID_TXHASH, reason='too many loops')
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid txHash')
         # NOTE: this should fail since the txHash has been already accepted.
-        result = self.score_sendTx.rejectScore(txHash=VALID_TXHASH, reason='too many loops')
+        result = self.score_sendTxByGenesis.rejectScore(txHash=VALID_TXHASH, reason='too many loops')
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid status: no next status')
+
+    def test_2_rejectScore(self):
         # reject another Score that is under pending (success case)
-        result = self.score_sendTx.rejectScore(txHash=VALID_TXHASH2, reason='too many loops')
+        result = self.score_sendTxByGenesis.rejectScore(txHash=VALID_TXHASH2, reason='too many loops')
         self.assertEqual(result['status'], hex(1))
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR2)
@@ -119,6 +131,6 @@ class TestGovernance(unittest.TestCase):
         self.assertIsNotNone(result['next']['auditTxHash'])
         self.assertEqual(result.get('current'), None)
         # sendTx for accepting the rejected Score (SHOULD FAIL)
-        result = self.score_sendTx.acceptScore(txHash=VALID_TXHASH2)
+        result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH2)
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid status: next is rejected')
