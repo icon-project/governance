@@ -134,3 +134,35 @@ class TestGovernance(unittest.TestCase):
         result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH2)
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid status: next is rejected')
+
+    def test_3_addAuditor(self):
+        # success case
+        result = self.score_sendTxByGenesis.addAuditor(address='hx' + '1' * 40)
+        self.assertEqual(result['status'], hex(1))
+        # duplicate test: silently ignored
+        result = self.score_sendTxByGenesis.addAuditor(address='hx' + '1' * 40)
+        self.assertEqual(result['status'], hex(1))
+        # not owner
+        result = self.score_sendTx.addAuditor(address='hx' + '2' * 40)
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid sender: not owner')
+        # success case
+        result = self.score_sendTxByGenesis.addAuditor(address='hx' + '2' * 40)
+        self.assertEqual(result['status'], hex(1))
+
+    def test_4_removeAuditor(self):
+        # not yourself
+        result = self.score_sendTx.removeAuditor(address='hx' + '1' * 40)
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid sender: not yourself')
+        # yourself success
+        yourself = JsonRpcHelper(from_='hx' + '1' * 40, to=GOVERNANCE)
+        result = yourself.removeAuditor(address='hx' + '1' * 40)
+        self.assertEqual(result['status'], hex(1))
+        # not in list
+        result = self.score_sendTxByGenesis.removeAuditor(address='hx' + '1' * 40)
+        self.assertEqual(result['status'], hex(0))
+        self.assertEqual(result['failure']['message'], 'Invalid address: not in list')
+        # genesis success
+        result = self.score_sendTxByGenesis.removeAuditor(address='hx' + '2' * 40)
+        self.assertEqual(result['status'], hex(1))

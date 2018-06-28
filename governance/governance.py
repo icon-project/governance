@@ -5,9 +5,9 @@ TAG = '*** Governance ***'
 CURRENT = 'current'
 NEXT = 'next'
 STATUS = 'status'
-DEPLOY_TXHASH = 'deployTxHash'
-AUDIT_TXHASH = 'auditTxHash'
-VALID_STATUS_KEYS = [STATUS, DEPLOY_TXHASH, AUDIT_TXHASH]
+DEPLOY_TX_HASH = 'deployTxHash'
+AUDIT_TX_HASH = 'auditTxHash'
+VALID_STATUS_KEYS = [STATUS, DEPLOY_TX_HASH, AUDIT_TX_HASH]
 
 STATUS_PENDING = 'pending'
 STATUS_ACTIVE = 'active'
@@ -17,6 +17,7 @@ STATUS_REJECTED = 'rejected'
 
 class Governance(IconScoreBase):
 
+    _OWNER_ADDR = 'owner_address'
     _SCORE_STATUS = 'score_status'
     _AUDITOR_LIST = 'auditor_list'
 
@@ -30,8 +31,9 @@ class Governance(IconScoreBase):
         'cx222222222f5b45bfaea8cff1d8232fbb6122ec32': '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
     }
 
-    def __init__(self, db: IconScoreDatabase, addr_owner: Address) -> None:
-        super().__init__(db, addr_owner)
+    def __init__(self, db: IconScoreDatabase, owner: Address) -> None:
+        super().__init__(db, owner)
+        self._owner = VarDB(self._OWNER_ADDR, db, value_type=Address)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=str, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
 
@@ -39,6 +41,7 @@ class Governance(IconScoreBase):
         super().on_install()
         # add genesis into initial auditor
         self._auditor_list.put(genesis)
+        self._owner.set(genesis)
 
     def on_update(self) -> None:
         super().on_update()
@@ -96,7 +99,7 @@ class Governance(IconScoreBase):
             # there is no status information, build initial status
             status = {
                 STATUS: STATUS_PENDING,
-                DEPLOY_TXHASH: tx_hash
+                DEPLOY_TX_HASH: tx_hash
             }
             result[NEXT] = status
             # self._save_status(_next, status)  # put is not allowed here!
@@ -107,7 +110,7 @@ class Governance(IconScoreBase):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
-            self.revert(f'Invalid sender: no permission')
+            self.revert('Invalid sender: no permission')
         # check txHash
         # TODO: replace with real func
         if txHash in self._MAP_ADDRESS:
@@ -130,8 +133,8 @@ class Governance(IconScoreBase):
         _current = self._get_current_status(score_address)
         status = {
             STATUS: STATUS_ACTIVE,
-            DEPLOY_TXHASH: txHash,
-            AUDIT_TXHASH: self.tx.hash
+            DEPLOY_TX_HASH: txHash,
+            AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_current, status)
 
@@ -140,7 +143,7 @@ class Governance(IconScoreBase):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
-            self.revert(f'Invalid sender: no permission')
+            self.revert('Invalid sender: no permission')
         # check txHash
         # TODO: replace with real func
         if txHash in self._MAP_ADDRESS:
@@ -160,19 +163,40 @@ class Governance(IconScoreBase):
         _next = self._get_next_status(score_address)
         status = {
             STATUS: STATUS_REJECTED,
-            DEPLOY_TXHASH: txHash,
-            AUDIT_TXHASH: self.tx.hash
+            DEPLOY_TX_HASH: txHash,
+            AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_next, status)
 
     @external
-    def selfRevoke(self):
-        pass
-
-    @external
     def addAuditor(self, address: Address):
-        pass
+        # check message sender, only owner can add new auditor
+        if self.msg.sender != self._owner.get():
+            self.revert('Invalid sender: not owner')
+        if address not in self._auditor_list:
+            self._auditor_list.put(address)
+
+        # FIXME: DEBUG - TO BE REMOVED!
+        for auditor in self._auditor_list:
+            Logger.debug(f' --- {auditor}')
+        Logger.debug(f'addAuditor: list len = {len(self._auditor_list)}', TAG)
 
     @external
     def removeAuditor(self, address: Address):
-        pass
+        if address not in self._auditor_list:
+            self.revert('Invalid address: not in list')
+        # check message sender
+        if self.msg.sender != self._owner.get():
+            if self.msg.sender != address:
+                self.revert('Invalid sender: not yourself')
+        # get the topmost value
+        top = self._auditor_list.pop()
+        if top != address:
+            for i in range(len(self._auditor_list)):
+                if self._auditor_list[i] == address:
+                    self._auditor_list[i] = top
+
+        # FIXME: DEBUG - TO BE REMOVED!
+        for auditor in self._auditor_list:
+            Logger.debug(f' --- {auditor}')
+        Logger.debug(f'removeAuditor: list len = {len(self._auditor_list)}', TAG)
