@@ -1,11 +1,6 @@
 #/bin/bash
 
 tbears clear
-tbears run governance
+tbears run governance --install params.json
 
 python -m unittest test_governance.py
-
-#./issue_rpc.sh getScoreStatus2
-#./issue_rpc.sh getScoreStatus
-#./issue_rpc.sh acceptScore
-#./issue_rpc.sh getScoreStatus

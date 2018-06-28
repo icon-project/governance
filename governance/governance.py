@@ -35,10 +35,10 @@ class Governance(IconScoreBase):
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=str, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
 
-    def on_install(self) -> None:
+    def on_install(self, genesis: Address) -> None:
         super().on_install()
         # add genesis into initial auditor
-        self._auditor_list.put(Address.from_string('hx' + '0'*40))  # TODO: replace with the real genesis
+        self._auditor_list.put(genesis)
 
     def on_update(self) -> None:
         super().on_update()
