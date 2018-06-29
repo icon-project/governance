@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = '*** Governance ***'
+TAG = 'Governance'
 
 CURRENT = 'current'
 NEXT = 'next'
@@ -65,7 +65,6 @@ class Governance(IconScoreBase):
 
     @staticmethod
     def _save_status(db: DictDB, status: dict) -> None:
-        Logger.debug(f'_save_status: status="{status}"', TAG)
         for key in VALID_STATUS_KEYS:
             value = status[key]
             if value:
@@ -141,7 +140,7 @@ class Governance(IconScoreBase):
     @external
     def rejectScore(self, txHash: str, reason: str):
         # check message sender
-        Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
+        Logger.debug(f'rejectScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
             self.revert('Invalid sender: no permission')
         # check txHash
