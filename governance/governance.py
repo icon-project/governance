@@ -1,6 +1,7 @@
 from iconservice import *
 
 TAG = 'Governance'
+DEBUG = False
 
 CURRENT = 'current'
 NEXT = 'next'
@@ -191,11 +192,8 @@ class Governance(IconScoreBase):
             self.revert('Invalid sender: not owner')
         if address not in self._auditor_list:
             self._auditor_list.put(address)
-
-        # FIXME: DEBUG - TO BE REMOVED!
-        for auditor in self._auditor_list:
-            Logger.debug(f' --- {auditor}')
-        Logger.debug(f'addAuditor: list len = {len(self._auditor_list)}', TAG)
+        if DEBUG is True:
+            self._print_auditor_list('addAuditor')
 
     @external
     def removeAuditor(self, address: Address):
@@ -211,8 +209,10 @@ class Governance(IconScoreBase):
             for i in range(len(self._auditor_list)):
                 if self._auditor_list[i] == address:
                     self._auditor_list[i] = top
+        if DEBUG is True:
+            self._print_auditor_list('removeAuditor')
 
-        # FIXME: DEBUG - TO BE REMOVED!
+    def _print_auditor_list(self, header: str):
+        Logger.debug(f'{header}: list len = {len(self._auditor_list)}', TAG)
         for auditor in self._auditor_list:
-            Logger.debug(f' --- {auditor}')
-        Logger.debug(f'removeAuditor: list len = {len(self._auditor_list)}', TAG)
+            Logger.debug(f' --- {auditor}', TAG)
