@@ -23,8 +23,8 @@ class Governance(IconScoreBase):
 
     # TODO: replace with real func
     _MAP_ADDRESS = {
-        '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32',
-        '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32',
+        'e0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32',
+        'e22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32',
     }
     _MAP_TXHASH = {
         'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32': '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
@@ -42,7 +42,7 @@ class Governance(IconScoreBase):
     def __init__(self, db: IconScoreDatabase, owner: Address) -> None:
         super().__init__(db, owner)
         self._owner = VarDB(self._OWNER_ADDR, db, value_type=Address)
-        self._score_status = DictDB(self._SCORE_STATUS, db, value_type=str, depth=3)
+        self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
 
     def on_install(self, genesis: Address) -> None:
@@ -61,20 +61,23 @@ class Governance(IconScoreBase):
         return self._score_status[score_address][NEXT]
 
     @staticmethod
-    def _fill_status(db: DictDB):
+    def _fill_status_with_str(db: DictDB):
         count = 0
         status = {}
         for key in VALID_STATUS_KEYS:
-            value = db[key]
+            value: bytes = db[key]
             if value:
-                status[key] = value
+                if key == STATUS:
+                    status[key] = value.decode()
+                else:
+                    status[key] = '0x' + value.hex()
                 count += 1
         return count, status
 
     @staticmethod
     def _save_status(db: DictDB, status: dict) -> None:
         for key in VALID_STATUS_KEYS:
-            value = status[key]
+            value: bytes = status[key]
             if value:
                 db[key] = value
 
@@ -89,17 +92,18 @@ class Governance(IconScoreBase):
     def getScoreStatus(self, address: Address) -> dict:
         # check score address
         # TODO: replace with real func
+        tx_hash: str = None
         if str(address) in self._MAP_TXHASH:
             tx_hash = self._MAP_TXHASH[str(address)]
         else:
             self.revert('SCORE not found')
         result = {}
         _current = self._get_current_status(address)
-        count1, status = self._fill_status(_current)
+        count1, status = self._fill_status_with_str(_current)
         if count1 > 0:
             result[CURRENT] = status
         _next = self._get_next_status(address)
-        count2, status = self._fill_status(_next)
+        count2, status = self._fill_status_with_str(_next)
         if count2 > 0:
             result[NEXT] = status
         if count1 + count2 == 0:
@@ -109,19 +113,20 @@ class Governance(IconScoreBase):
                 DEPLOY_TX_HASH: tx_hash
             }
             result[NEXT] = status
-            # self._save_status(_next, status)  # put is not allowed here!
         return result
 
     @external
-    def acceptScore(self, txHash: str):
+    def acceptScore(self, txHash: bytes):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
             self.revert('Invalid sender: no permission')
         # check txHash
         # TODO: replace with real func
-        if txHash in self._MAP_ADDRESS:
-            score_address = Address.from_string(self._MAP_ADDRESS[txHash])
+        score_address: Address = None
+        hex_string = txHash.hex()
+        if hex_string in self._MAP_ADDRESS:
+            score_address = Address.from_string(self._MAP_ADDRESS[hex_string])
         else:
             self.revert('Invalid txHash')
         Logger.debug(f'acceptScore: score_address = "{score_address}"', TAG)
@@ -144,18 +149,20 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_current, status)
-        self.Accepted(txHash)
+        self.Accepted('0x' + hex_string)
 
     @external
-    def rejectScore(self, txHash: str, reason: str):
+    def rejectScore(self, txHash: bytes, reason: str):
         # check message sender
         Logger.debug(f'rejectScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
             self.revert('Invalid sender: no permission')
         # check txHash
         # TODO: replace with real func
-        if txHash in self._MAP_ADDRESS:
-            score_address = Address.from_string(self._MAP_ADDRESS[txHash])
+        score_address: Address = None
+        hex_string = txHash.hex()
+        if hex_string in self._MAP_ADDRESS:
+            score_address = Address.from_string(self._MAP_ADDRESS[hex_string])
         else:
             self.revert('Invalid txHash')
         Logger.debug(f'rejectScore: score_address = "{score_address}", reason = {reason}', TAG)
@@ -175,7 +182,7 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_next, status)
-        self.Rejected(txHash)
+        self.Rejected('0x' + hex_string)
 
     @external
     def addAuditor(self, address: Address):
