@@ -31,6 +31,14 @@ class Governance(IconScoreBase):
         'cx222222222f5b45bfaea8cff1d8232fbb6122ec32': '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
     }
 
+    @eventlog(indexed=1)
+    def Accepted(self, tx_hash: str):
+        pass
+
+    @eventlog(indexed=1)
+    def Rejected(self, tx_hash: str):
+        pass
+
     def __init__(self, db: IconScoreDatabase, owner: Address) -> None:
         super().__init__(db, owner)
         self._owner = VarDB(self._OWNER_ADDR, db, value_type=Address)
@@ -136,6 +144,7 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_current, status)
+        self.Accepted(txHash)
 
     @external
     def rejectScore(self, txHash: str, reason: str):
@@ -166,6 +175,7 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_next, status)
+        self.Rejected(txHash)
 
     @external
     def addAuditor(self, address: Address):
