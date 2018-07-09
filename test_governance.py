@@ -102,6 +102,15 @@ class TestGovernance(unittest.TestCase):
     def test_1_acceptScore(self):
         result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH)
         self.assertEqual(result['status'], hex(1))
+        # verify event log
+        event_logs = result['eventLogs']
+        for event in event_logs:
+            self.assertEqual(event['scoreAddress'], GOVERNANCE)
+            indexed = event['indexed']
+            func_sig = indexed[0]
+            self.assertEqual(func_sig, 'Accepted(str)')
+            tx_hash = indexed[1]
+            self.assertEqual(tx_hash, VALID_TXHASH)
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR)
         self.assertEqual(result['current']['status'], 'active')
@@ -125,6 +134,15 @@ class TestGovernance(unittest.TestCase):
         # reject another Score that is under pending (success case)
         result = self.score_sendTxByGenesis.rejectScore(txHash=VALID_TXHASH2, reason='too many loops')
         self.assertEqual(result['status'], hex(1))
+        # verify event log
+        event_logs = result['eventLogs']
+        for event in event_logs:
+            self.assertEqual(event['scoreAddress'], GOVERNANCE)
+            indexed = event['indexed']
+            func_sig = indexed[0]
+            self.assertEqual(func_sig, 'Rejected(str)')
+            tx_hash = indexed[1]
+            self.assertEqual(tx_hash, VALID_TXHASH2)
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR2)
         self.assertEqual(result['next']['status'], 'rejected')
@@ -167,3 +185,7 @@ class TestGovernance(unittest.TestCase):
         # genesis success
         result = self.score_sendTxByGenesis.removeAuditor(address='hx' + '2' * 40)
         self.assertEqual(result['status'], hex(1))
+
+    def test_getStepPrice(self):
+        result = self.score_call.getStepPrice()
+        self.assertEqual(result, hex(10 ** 12))

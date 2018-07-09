@@ -21,6 +21,7 @@ class Governance(IconScoreBase):
     _OWNER_ADDR = 'owner_address'
     _SCORE_STATUS = 'score_status'
     _AUDITOR_LIST = 'auditor_list'
+    _STEP_PRICE = 'step_price'
 
     # TODO: replace with real func
     _MAP_ADDRESS = {
@@ -45,12 +46,15 @@ class Governance(IconScoreBase):
         self._owner = VarDB(self._OWNER_ADDR, db, value_type=Address)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
+        self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
 
-    def on_install(self, owner: Address) -> None:
+    def on_install(self, owner: Address, stepPrice: int = 10 ** 12) -> None:
         super().on_install()
         # add owner into initial auditor list
         self._auditor_list.put(owner)
         self._owner.set(owner)
+        # set initial step price
+        self._step_price.set(stepPrice)
 
     def on_update(self) -> None:
         super().on_update()
@@ -115,6 +119,10 @@ class Governance(IconScoreBase):
             }
             result[NEXT] = status
         return result
+
+    @external(readonly=True)
+    def getStepPrice(self) -> int:
+        return self._step_price.get()
 
     @external
     def acceptScore(self, txHash: bytes):
