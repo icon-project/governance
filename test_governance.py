@@ -1,3 +1,4 @@
+import time
 import unittest
 import requests
 
@@ -32,7 +33,7 @@ class JsonRpcHelper:
                     "from": self.from_,
                     "to": self.to,
                     "stepLimit": "0x12345",
-                    "timestamp": "0x563a6cf330136",
+                    "timestamp": hex(int(time.time() * 10 ** 6)),
                     "dataType": "call",
                     "data": {
                         "method": name,
