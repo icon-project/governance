@@ -18,7 +18,6 @@ STATUS_REJECTED = 'rejected'
 
 class Governance(IconScoreBase):
 
-    _OWNER_ADDR = 'owner_address'
     _SCORE_STATUS = 'score_status'
     _AUDITOR_LIST = 'auditor_list'
     _STEP_PRICE = 'step_price'
@@ -41,18 +40,20 @@ class Governance(IconScoreBase):
     def Rejected(self, tx_hash: str):
         pass
 
+    @eventlog(indexed=1)
+    def StepPriceChanged(self, step_price: int):
+        pass
+
     def __init__(self, db: IconScoreDatabase, owner: Address) -> None:
         super().__init__(db, owner)
-        self._owner = VarDB(self._OWNER_ADDR, db, value_type=Address)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
         self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
 
-    def on_install(self, owner: Address, stepPrice: int = 10 ** 12) -> None:
+    def on_install(self, stepPrice: int = 10 ** 12) -> None:
         super().on_install()
         # add owner into initial auditor list
-        self._auditor_list.put(owner)
-        self._owner.set(owner)
+        self._auditor_list.put(self.owner)
         # set initial step price
         self._step_price.set(stepPrice)
 
@@ -123,6 +124,15 @@ class Governance(IconScoreBase):
     @external(readonly=True)
     def getStepPrice(self) -> int:
         return self._step_price.get()
+
+    @external
+    def setStepPrice(self, stepPrice: int):
+        # only owner can set new step price
+        if self.msg.sender != self.owner:
+            self.revert('Invalid sender: not owner')
+        if stepPrice > 0:
+            self._step_price.set(stepPrice)
+            self.StepPriceChanged(stepPrice)
 
     @external
     def acceptScore(self, txHash: bytes):
@@ -196,7 +206,7 @@ class Governance(IconScoreBase):
     @external
     def addAuditor(self, address: Address):
         # check message sender, only owner can add new auditor
-        if self.msg.sender != self._owner.get():
+        if self.msg.sender != self.owner:
             self.revert('Invalid sender: not owner')
         if address not in self._auditor_list:
             self._auditor_list.put(address)
@@ -208,7 +218,7 @@ class Governance(IconScoreBase):
         if address not in self._auditor_list:
             self.revert('Invalid address: not in list')
         # check message sender
-        if self.msg.sender != self._owner.get():
+        if self.msg.sender != self.owner:
             if self.msg.sender != address:
                 self.revert('Invalid sender: not yourself')
         # get the topmost value
