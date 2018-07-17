@@ -40,16 +40,6 @@ class Governance(IconScoreBase):
     _STEP_PRICE = 'step_price'
     _STEP_COSTS = 'step_costs'
 
-    # TODO: replace with real func
-    _MAP_ADDRESS = {
-        'e0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32',
-        'e22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32',
-    }
-    _MAP_TXHASH = {
-        'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32': '0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
-        'cx222222222f5b45bfaea8cff1d8232fbb6122ec32': '0xe22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27',
-    }
-
     @eventlog(indexed=1)
     def Accepted(self, tx_hash: str):
         pass
@@ -68,6 +58,7 @@ class Governance(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._dummy_step = 0  # for TEST
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
         self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
@@ -102,7 +93,7 @@ class Governance(IconScoreBase):
                 if key == STATUS:
                     status[key] = value.decode()
                 else:
-                    status[key] = '0x' + value.hex()
+                    status[key] = value
                 count += 1
         return count, status
 
@@ -123,26 +114,39 @@ class Governance(IconScoreBase):
     @external(readonly=True)
     def getScoreStatus(self, address: Address) -> dict:
         # check score address
-        # TODO: replace with real func
-        tx_hash: str = None
-        if str(address) in self._MAP_TXHASH:
-            tx_hash = self._MAP_TXHASH[str(address)]
-        else:
+        current_tx_hash, next_tx_hash = self.get_tx_hashes_by_score_address(address)
+        if current_tx_hash is None and next_tx_hash is None:
             self.revert('SCORE not found')
         result = {}
+        build_initial_status = False
+        # get current status
         _current = self._get_current_status(address)
         count1, status = self._fill_status_with_str(_current)
         if count1 > 0:
+            if current_tx_hash is None:
+                self.revert('current_tx_hash is None')
+            if current_tx_hash != status[DEPLOY_TX_HASH]:
+                self.revert('Current deploy tx mismatch')
+            # audit has been performed (accepted)
             result[CURRENT] = status
+        # get next status
         _next = self._get_next_status(address)
         count2, status = self._fill_status_with_str(_next)
         if count2 > 0:
-            result[NEXT] = status
-        if count1 + count2 == 0:
-            # there is no status information, build initial status
+            # check if another pending tx has been arrived
+            if next_tx_hash is not None and \
+                    next_tx_hash != status[DEPLOY_TX_HASH]:
+                build_initial_status = True
+            else:
+                # audit has been performed (rejected)
+                result[NEXT] = status
+        # there is no information, build initial status
+        if count1 + count2 == 0 or build_initial_status:
+            if next_tx_hash is None:
+                self.revert('next_tx_hash is None')
             status = {
                 STATUS: STATUS_PENDING,
-                DEPLOY_TX_HASH: tx_hash
+                DEPLOY_TX_HASH: next_tx_hash
             }
             result[NEXT] = status
         return result
@@ -167,12 +171,8 @@ class Governance(IconScoreBase):
         if self.msg.sender not in self._auditor_list:
             self.revert('Invalid sender: no permission')
         # check txHash
-        # TODO: replace with real func
-        score_address: Address = None
-        hex_string = txHash.hex()
-        if hex_string in self._MAP_ADDRESS:
-            score_address = Address.from_string(self._MAP_ADDRESS[hex_string])
-        else:
+        score_address = self.get_score_address_by_tx_hash(txHash)
+        if score_address is None:
             self.revert('Invalid txHash')
         Logger.debug(f'acceptScore: score_address = "{score_address}"', TAG)
         # check next: it should be 'pending'
@@ -194,7 +194,8 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_current, status)
-        self.Accepted('0x' + hex_string)
+        self.deploy_dummy(txHash)  # for TEST
+        self.Accepted('0x' + txHash.hex())
 
     @external
     def rejectScore(self, txHash: bytes, reason: str):
@@ -203,12 +204,8 @@ class Governance(IconScoreBase):
         if self.msg.sender not in self._auditor_list:
             self.revert('Invalid sender: no permission')
         # check txHash
-        # TODO: replace with real func
-        score_address: Address = None
-        hex_string = txHash.hex()
-        if hex_string in self._MAP_ADDRESS:
-            score_address = Address.from_string(self._MAP_ADDRESS[hex_string])
-        else:
+        score_address = self.get_score_address_by_tx_hash(txHash)
+        if score_address is None:
             self.revert('Invalid txHash')
         Logger.debug(f'rejectScore: score_address = "{score_address}", reason = {reason}', TAG)
         # check next: it should be 'pending'
@@ -227,7 +224,7 @@ class Governance(IconScoreBase):
             AUDIT_TX_HASH: self.tx.hash
         }
         self._save_status(_next, status)
-        self.Rejected('0x' + hex_string)
+        self.Rejected('0x' + txHash.hex())
 
     @external
     def addAuditor(self, address: Address):
@@ -299,3 +296,36 @@ class Governance(IconScoreBase):
                 self.revert(f'Invalid step cost: {stepType}, {cost}')
         self._step_costs[stepType] = cost
         self.StepCostChanged(stepType, cost)
+
+    def get_tx_hashes_by_score_address(self, address):
+        _MAP_VALID_TXHASH1 = {
+            'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32': 'e0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27'
+        }
+        _MAP_VALID_TXHASH2 = {
+            'cx222222222f5b45bfaea8cff1d8232fbb6122ec32': 'e22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27'
+        }
+        _current = None
+        _next = None
+        if str(address) in _MAP_VALID_TXHASH1:
+            tx_hash = _MAP_VALID_TXHASH1[str(address)]
+            if self._dummy_step == 0:
+                _next = bytes.fromhex(tx_hash)
+            elif self._dummy_step == 1:
+                _current = bytes.fromhex(tx_hash)
+        elif str(address) in _MAP_VALID_TXHASH2:
+            tx_hash = _MAP_VALID_TXHASH2[str(address)]
+            _next = bytes.fromhex(tx_hash)
+        return _current, _next
+
+    def get_score_address_by_tx_hash(self, tx_hash):
+        _MAP_ADDRESS = {
+            'e0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32',
+            'e22222222222222250cd1e6d57549f67fe9718654cde15258922d0f88ff58b27': 'cx222222222f5b45bfaea8cff1d8232fbb6122ec32',
+        }
+        hex_string = tx_hash.hex()
+        if hex_string in _MAP_ADDRESS:
+            return Address.from_string(_MAP_ADDRESS[hex_string])
+        return
+
+    def deploy_dummy(self, tx_hash):
+        self._dummy_step += 1

@@ -102,6 +102,7 @@ class TestGovernance(unittest.TestCase):
     def test_1_acceptScore(self):
         result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH)
         self.assertEqual(result['status'], hex(1))
+        audit_tx_hash = result['txHash']
         # verify event log
         event_logs = result['eventLogs']
         for event in event_logs:
@@ -114,8 +115,8 @@ class TestGovernance(unittest.TestCase):
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR)
         self.assertEqual(result['current']['status'], 'active')
-        self.assertIsNotNone(result['current']['deployTxHash'])
-        self.assertIsNotNone(result['current']['auditTxHash'])
+        self.assertEqual(result['current']['deployTxHash'], VALID_TXHASH)
+        self.assertEqual(result['current']['auditTxHash'], audit_tx_hash)
         self.assertEqual(result.get('next'), None)
 
     def test_2_rejectScore_negative(self):
@@ -134,6 +135,7 @@ class TestGovernance(unittest.TestCase):
         # reject another Score that is under pending (success case)
         result = self.score_sendTxByGenesis.rejectScore(txHash=VALID_TXHASH2, reason='too many loops')
         self.assertEqual(result['status'], hex(1))
+        audit_tx_hash = result['txHash']
         # verify event log
         event_logs = result['eventLogs']
         for event in event_logs:
@@ -146,8 +148,8 @@ class TestGovernance(unittest.TestCase):
         # verify the written status
         result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR2)
         self.assertEqual(result['next']['status'], 'rejected')
-        self.assertIsNotNone(result['next']['deployTxHash'])
-        self.assertIsNotNone(result['next']['auditTxHash'])
+        self.assertEqual(result['next']['deployTxHash'], VALID_TXHASH2)
+        self.assertEqual(result['next']['auditTxHash'], audit_tx_hash)
         self.assertEqual(result.get('current'), None)
         # sendTx for accepting the rejected Score (SHOULD FAIL)
         result = self.score_sendTxByGenesis.acceptScore(txHash=VALID_TXHASH2)
@@ -189,3 +191,18 @@ class TestGovernance(unittest.TestCase):
     def test_getStepPrice(self):
         result = self.score_call.getStepPrice()
         self.assertEqual(result, hex(10 ** 12))
+
+    def test_getStepCosts(self):
+        result = self.score_call.getStepCosts()
+        self.assertEqual(result['default'], hex(4000))
+
+    def test_setStepCost(self):
+        result = self.score_sendTxByGenesis.setStepCost(stepType='contractDestruct', cost='-0x1388')
+        self.assertEqual(result['status'], hex(1))
+        result = self.score_sendTxByGenesis.setStepCost(stepType='default', cost='0x1388')
+        self.assertEqual(result['status'], hex(1))
+        result = self.score_sendTxByGenesis.setStepCost(stepType='default', cost='-0x1388')
+        self.assertEqual(result['status'], hex(0))
+        result = self.score_call.getStepCosts()
+        self.assertEqual(result['default'], hex(5000))
+        self.assertEqual(result['contractDestruct'], hex(-5000))
