@@ -1,6 +1,7 @@
 #/bin/bash
 
 tbears clear
-tbears run governance --install params.json
+tbears start
+tbears deploy governance
 
 python -m unittest test_governance.py
