@@ -140,10 +140,11 @@ class Governance(IconScoreBase):
             else:
                 # audit has been performed (rejected)
                 result[NEXT] = status
+        else:
+            if next_tx_hash is not None:
+                build_initial_status = True
         # there is no information, build initial status
-        if count1 + count2 == 0 or build_initial_status:
-            if next_tx_hash is None:
-                self.revert('next_tx_hash is None')
+        if build_initial_status:
             status = {
                 STATUS: STATUS_PENDING,
                 DEPLOY_TX_HASH: next_tx_hash
@@ -306,12 +307,17 @@ class Governance(IconScoreBase):
         }
         _current = None
         _next = None
+        print(f' ===== _dummy_step = {self._dummy_step}')
         if str(address) in _MAP_VALID_TXHASH1:
             tx_hash = _MAP_VALID_TXHASH1[str(address)]
             if self._dummy_step == 0:
                 _next = bytes.fromhex(tx_hash)
-            elif self._dummy_step == 1:
+            elif self._dummy_step == 1 or self._dummy_step == 2:
                 _current = bytes.fromhex(tx_hash)
+                self.deploy_dummy(tx_hash)
+            elif self._dummy_step == 3:
+                _current = bytes.fromhex(tx_hash)
+                _next = bytes.fromhex('3' * 40)
         elif str(address) in _MAP_VALID_TXHASH2:
             tx_hash = _MAP_VALID_TXHASH2[str(address)]
             _next = bytes.fromhex(tx_hash)

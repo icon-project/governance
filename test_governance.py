@@ -156,7 +156,14 @@ class TestGovernance(unittest.TestCase):
         self.assertEqual(result['status'], hex(0))
         self.assertEqual(result['failure']['message'], 'Invalid status: next is rejected')
 
-    def test_3_addAuditor(self):
+    def test_3_update(self):
+        result = self.score_call.getScoreStatus(address=SCORE_VALID_ADDR)
+        self.assertEqual(result['current']['status'], 'active')
+        self.assertEqual(result['current']['deployTxHash'], VALID_TXHASH)
+        self.assertEqual(result['next']['status'], 'pending')
+        self.assertEqual(result['next']['deployTxHash'], '0x' + '3' * 40)
+
+    def test_4_addAuditor(self):
         # success case
         result = self.score_sendTxByGenesis.addAuditor(address='hx' + '1' * 40)
         self.assertEqual(result['status'], hex(1))
@@ -171,7 +178,7 @@ class TestGovernance(unittest.TestCase):
         result = self.score_sendTxByGenesis.addAuditor(address='hx' + '2' * 40)
         self.assertEqual(result['status'], hex(1))
 
-    def test_4_removeAuditor(self):
+    def test_5_removeAuditor(self):
         # not yourself
         result = self.score_sendTx.removeAuditor(address='hx' + '1' * 40)
         self.assertEqual(result['status'], hex(0))
