@@ -5,4 +5,4 @@ tbears clear
 tbears start
 tbears deploy governance
 
-python -m unittest test_governance.py
+python -m unittest -v test_governance.py

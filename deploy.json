@@ -9,6 +9,7 @@
     "stepLimit": "0x12345",
     "txType": "dummy",
     "scoreParams": {
-        "stepPrice": "0xe8d4a51000"
+        "stepPrice": "0xe8d4a51000",
+        "maxStepLimit": "0x4000000"
     }
 }

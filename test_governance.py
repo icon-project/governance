@@ -213,3 +213,7 @@ class TestGovernance(unittest.TestCase):
         result = self.score_call.getStepCosts()
         self.assertEqual(result['default'], hex(5000))
         self.assertEqual(result['contractDestruct'], hex(-5000))
+
+    def test_maxStepLimit(self):
+        result = self.score_call.getMaxStepLimit()
+        self.assertEqual(result, hex(64 * 1024 * 1024))
