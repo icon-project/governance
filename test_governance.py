@@ -142,7 +142,7 @@ class TestGovernance(unittest.TestCase):
             self.assertEqual(event['scoreAddress'], GOVERNANCE)
             indexed = event['indexed']
             func_sig = indexed[0]
-            self.assertEqual(func_sig, 'Rejected(str)')
+            self.assertEqual(func_sig, 'Rejected(str,str)')
             tx_hash = indexed[1]
             self.assertEqual(tx_hash, VALID_TXHASH2)
         # verify the written status

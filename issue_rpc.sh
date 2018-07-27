@@ -26,6 +26,16 @@ case "$action" in
           }
       }"
   ;;
+  getapi )
+      PARAMS="{
+          \"jsonrpc\": \"2.0\",
+          \"method\": \"icx_getScoreApi\",
+          \"id\": 1234,
+          \"params\": {
+              \"address\": \"$2\"
+          }
+      }"
+  ;;
   acceptScore )
       PARAMS="{
           \"jsonrpc\": \"2.0\",
