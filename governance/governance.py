@@ -119,6 +119,10 @@ class Governance(IconScoreBase):
     def StepCostChanged(self, stepType: str, cost: int):
         pass
 
+    @eventlog(indexed=1)
+    def MaxStepLimitChanged(self, contextType: str, value: int):
+        pass
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
@@ -456,3 +460,13 @@ class Governance(IconScoreBase):
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
         return self._max_step_limits[contextType]
+
+    @external
+    def setMaxStepLimit(self, contextType: str, value: int):
+        # only owner can set new step cost
+        if self.msg.sender != self.owner:
+            self.revert('Invalid sender: not owner')
+        if value < 0:
+            self.revert('Invalid value: negative number')
+        self._max_step_limits[contextType] = value
+        self.MaxStepLimitChanged(contextType, value)
