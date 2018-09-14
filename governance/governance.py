@@ -463,10 +463,13 @@ class Governance(IconScoreBase):
 
     @external
     def setMaxStepLimit(self, contextType: str, value: int):
-        # only owner can set new step cost
+        # only owner can set new context type value
         if self.msg.sender != self.owner:
             self.revert('Invalid sender: not owner')
         if value < 0:
             self.revert('Invalid value: negative number')
-        self._max_step_limits[contextType] = value
-        self.MaxStepLimitChanged(contextType, value)
+        if contextType == CONTEXT_TYPE_INVOKE or contextType == CONTEXT_TYPE_QUERY:
+            self._max_step_limits[contextType] = value
+            self.MaxStepLimitChanged(contextType, value)
+        else:
+            self.revert("Invalid context type")
