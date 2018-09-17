@@ -104,19 +104,23 @@ class Governance(IconScoreBase):
     _MAX_STEP_LIMITS = 'max_step_limits'
 
     @eventlog(indexed=1)
-    def Accepted(self, tx_hash: str):
+    def Accepted(self, txHash: str):
         pass
 
     @eventlog(indexed=1)
-    def Rejected(self, tx_hash: str, reason: str):
+    def Rejected(self, txHash: str, reason: str):
         pass
 
     @eventlog(indexed=1)
-    def StepPriceChanged(self, step_price: int):
+    def StepPriceChanged(self, stepPrice: int):
         pass
 
     @eventlog(indexed=1)
-    def StepCostChanged(self, step_type: str, cost: int):
+    def StepCostChanged(self, stepType: str, cost: int):
+        pass
+
+    @eventlog(indexed=1)
+    def MaxStepLimitChanged(self, contextType: str, value: int):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -454,5 +458,18 @@ class Governance(IconScoreBase):
         self.StepCostChanged(stepType, cost)
 
     @external(readonly=True)
-    def getMaxStepLimit(self, context_type: str) -> int:
-        return self._max_step_limits[context_type]
+    def getMaxStepLimit(self, contextType: str) -> int:
+        return self._max_step_limits[contextType]
+
+    @external
+    def setMaxStepLimit(self, contextType: str, value: int):
+        # only owner can set new context type value
+        if self.msg.sender != self.owner:
+            self.revert('Invalid sender: not owner')
+        if value < 0:
+            self.revert('Invalid value: negative number')
+        if contextType == CONTEXT_TYPE_INVOKE or contextType == CONTEXT_TYPE_QUERY:
+            self._max_step_limits[contextType] = value
+            self.MaxStepLimitChanged(contextType, value)
+        else:
+            self.revert("Invalid context type")

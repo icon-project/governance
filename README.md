@@ -39,6 +39,7 @@ The most commonly used Value types are as follows.
     * [removeAuditor](#removeauditor)
     * [setStepPrice](#setstepprice)
     * [setStepCost](#setstepcost)
+    * [setMaxStepLimit](#setmaxsteplimit)
     * [addDeployer](#adddeployer)
     * [removeDeployer](#removedeployer)
     * [addToScoreBlackList](#addtoscoreblacklist)
@@ -48,6 +49,7 @@ The most commonly used Value types are as follows.
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
     * [StepCostChanged](#stepcostchanged)
+    * [MaxStepLimitChanged](#maxsteplimitchanged)
 
 
 # Query Methods
@@ -292,7 +294,7 @@ None
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| context_type | string | 'invoke' for sendTransaction, 'query' for call |
+| contextType | string | 'invoke' for sendTransaction, 'query' for call |
 
 ### Returns
 
@@ -314,7 +316,7 @@ None
         "data": {
             "method": "getMaxStepLimit",
             "params": {
-                "context_type": "invoke"
+                "contextType": "invoke"
             }
         }
     }
@@ -670,6 +672,47 @@ Methods that could change states
 }
 ```
 
+## setMaxStepLimit
+
+* Sets the maximum step limit value.
+* Only the owner can call this function.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| contextType | [T\_STRING](#T_STRING) | 'invoke' for sendTransaction, 'query' for call |
+| value | [T\_INT](#T_INT) | max value for the context |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "setMaxStepLimit",
+            "params": {
+                "contextType": "invoke",
+                "value": "0x883311220099"
+            }
+        }
+    }
+}
+```
+
 ## addDeployer
 
 * Adds a new address to the deployer list that has the authority to register any SCORE.
@@ -835,7 +878,7 @@ Must trigger on any successful acceptScore transaction.
 
 ```python
 @eventlog(indexed=1)
-def Accepted(self, tx_hash: str):
+def Accepted(self, txHash: str):
     pass
 ```
 
@@ -845,7 +888,7 @@ Must trigger on any successful rejectScore transaction.
 
 ```python
 @eventlog(indexed=1)
-def Rejected(self, tx_hash: str, reason: str):
+def Rejected(self, txHash: str, reason: str):
     pass
 ```
 
@@ -855,7 +898,7 @@ Must trigger on any successful setStepPrice transaction.
 
 ```python
 @eventlog(indexed=1)
-def StepPriceChanged(self, step_price: int):
+def StepPriceChanged(self, stepPrice: int):
     pass
 ```
 
@@ -865,6 +908,16 @@ Must trigger on any successful setStepCost transaction.
 
 ```python
 @eventlog(indexed=1)
-def StepCostChanged(self, step_type: str, cost: int):
+def StepCostChanged(self, stepType: str, cost: int):
+    pass
+```
+
+## MaxStepLimitChanged
+
+Must trigger on any successful setMaxStepLimit transaction.
+
+```python
+@eventlog(indexed=1)
+def MaxStepLimitChanged(self, contextType: str, value: int):
     pass
 ```
