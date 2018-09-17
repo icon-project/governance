@@ -32,6 +32,7 @@ The most commonly used Value types are as follows.
     * [getMaxStepLimit](#getmaxsteplimit)
     * [isDeployer](#isdeployer)
     * [isInScoreBlackList](#isinscoreblacklist)
+    * [getVersion](#getVersion)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -426,6 +427,48 @@ None
     "result": "0x1"
 }
 ```
+
+
+
+## getVersion
+
+- Returns the version of Governance SCORE
+
+### Returns
+
+`T_STR` - version string
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "getVersion"
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "0.0.0"
+}
+```
+
+
 
 # Invoke Methods
 

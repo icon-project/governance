@@ -102,6 +102,7 @@ class Governance(IconScoreBase):
     _SCORE_BLACK_LIST = 'score_black_list'
     _STEP_PRICE = 'step_price'
     _MAX_STEP_LIMITS = 'max_step_limits'
+    _VERSION = 'version'
 
     @eventlog(indexed=1)
     def Accepted(self, txHash: str):
@@ -132,11 +133,9 @@ class Governance(IconScoreBase):
         self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
         self._step_costs = StepCosts(db)
         self._max_step_limits = DictDB(self._MAX_STEP_LIMITS, db, value_type=int)
+        self._version = VarDB(self._VERSION, db, value_type=str)
 
-    def on_install(self,
-                   stepPrice: int = 10 ** 10,
-                   maxInvokeStepLimit: int = 0x78000000,
-                   maxQueryStepLimit: int = 0x780000) -> None:
+    def on_install(self, stepPrice: int = 10 ** 10) -> None:
         super().on_install()
         # add owner into initial auditor list
         Logger.debug(f'on_install: owner = "{self.owner}"', TAG)
@@ -148,23 +147,45 @@ class Governance(IconScoreBase):
         # set initial step costs
         self._set_initial_step_costs()
         # set initial max step limits
-        self._max_step_limits[CONTEXT_TYPE_INVOKE] = maxInvokeStepLimit
-        self._max_step_limits[CONTEXT_TYPE_QUERY] = maxQueryStepLimit
+        self._set_initial_max_step_limits()
 
     def on_update(self) -> None:
         super().on_update()
+        last_version = self._version.get()
+        self._version.set('0.0.2')
 
+        if self._versions(last_version) < self._versions('0.0.2'):
+            self._migrate_v0_0_2()
+
+    def _migrate_v0_0_2(self):
+        """
+        This migration updates the step costs and max step limits
+        """
         if len(self._step_costs) == 0:
             # migrates from old DB of step_costs.
             for step_type in INITIAL_STEP_COST_KEYS:
                 if step_type in self._step_costs:
                     self._step_costs._step_types.put(step_type)
 
+        self._set_initial_step_costs()
+        self._set_initial_max_step_limits()
+
     def _get_current_status(self, score_address: Address):
         return self._score_status[score_address][CURRENT]
 
     def _get_next_status(self, score_address: Address):
         return self._score_status[score_address][NEXT]
+
+    @staticmethod
+    def _versions(version: str):
+        parts = []
+        if version is not None:
+            for part in version.split("."):
+                try:
+                    parts.append(int(part))
+                except ValueError:
+                    pass
+        return tuple(parts)
 
     @staticmethod
     def _fill_status_with_str(db: DictDB):
@@ -421,22 +442,26 @@ class Governance(IconScoreBase):
 
     def _set_initial_step_costs(self):
         initial_costs = {
-            STEP_TYPE_DEFAULT: 1_000_000,
-            STEP_TYPE_CONTRACT_CALL: 15_000,
-            STEP_TYPE_CONTRACT_CREATE: 200_000,
-            STEP_TYPE_CONTRACT_UPDATE: 80_000,
+            STEP_TYPE_DEFAULT: 100_000,
+            STEP_TYPE_CONTRACT_CALL: 25_000,
+            STEP_TYPE_CONTRACT_CREATE: 1_000_000_000,
+            STEP_TYPE_CONTRACT_UPDATE: 1_600_000_000,
             STEP_TYPE_CONTRACT_DESTRUCT: -70_000,
             STEP_TYPE_CONTRACT_SET: 30_000,
             STEP_TYPE_GET: 0,
-            STEP_TYPE_SET: 200,
-            STEP_TYPE_REPLACE: 50,
-            STEP_TYPE_DELETE: -150,
+            STEP_TYPE_SET: 320,
+            STEP_TYPE_REPLACE: 80,
+            STEP_TYPE_DELETE: -240,
             STEP_TYPE_INPUT: 200,
             STEP_TYPE_EVENT_LOG: 100,
             STEP_TYPE_API_CALL: 0
         }
         for key, value in initial_costs.items():
             self._step_costs[key] = value
+
+    def _set_initial_max_step_limits(self):
+        self._max_step_limits[CONTEXT_TYPE_INVOKE] = 2_500_000_000
+        self._max_step_limits[CONTEXT_TYPE_QUERY] = 2_500_000
 
     @external(readonly=True)
     def getStepCosts(self) -> dict:
@@ -473,3 +498,7 @@ class Governance(IconScoreBase):
             self.MaxStepLimitChanged(contextType, value)
         else:
             self.revert("Invalid context type")
+
+    @external(readonly=True)
+    def getVersion(self) -> str:
+        return self._version.get()
