@@ -20,8 +20,27 @@ The most commonly used Value types are as follows.
 | <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a> | "cx" + 40 digits HEX string | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32 |
 | <a id="T_HASH">T\_HASH</a> | "0x" + 64 digits HEX string | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
 | <a id="T_INT">T\_INT</a> | "0x" + lowercase HEX string | 0xa |
+| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}" |
 | <a id="T_BIN_DATA">T\_BIN\_DATA</a> | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2 |
 | <a id="T_SIG">T\_SIG</a> | base64 encoded string | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
+
+## Import statement
+### Grammar
+import_stmt: '{' import_element (',' import_element)* '}' <br>
+import_element: (import_name | import_from) <br>
+import_name:  dotted_name ': []' <br>
+Import_from:  dotted_name ': [' dotted_names ']' <br>
+dotted_name: '\\''NAME ('.' NAME)*'\\'' <br>
+dotted_names: dotted_name (',' dotted_name)* '}' <br>
+
+### Exmaples
+| python import | import statement |
+|:------------- |:-----------------|
+|import json | { 'json' : [] } |
+|from json import * |{ 'json' : [] } |
+|from os import path | { 'os' : ['path'] } |
+|from base.exception import ExceptionCode, RevertException | { 'base.exception' : ['ExceptionCode', 'RevertException'] } |
+|import json <br> from os import path <br> from base.exception import ExceptionCode, RevertException <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode', 'RevertException'] } |
 
 # Methods List
 
@@ -33,6 +52,7 @@ The most commonly used Value types are as follows.
     * [isDeployer](#isdeployer)
     * [isInScoreBlackList](#isinscoreblacklist)
     * [getVersion](#getVersion)
+    * [isInImportWhiteList](#isinimportwhitelist)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -45,13 +65,17 @@ The most commonly used Value types are as follows.
     * [removeDeployer](#removedeployer)
     * [addToScoreBlackList](#addtoscoreblacklist)
     * [removeFromScoreBlackList](#removefromscoreblacklist)
+    * [addImportWhiteList](#addimportwhitelist)
+    * [removeImportWhiteList](#removeimportwhitelist)
+
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
     * [StepCostChanged](#stepcostchanged)
     * [MaxStepLimitChanged](#maxsteplimitchanged)
-
+    * [AddImportWhiteListLog](#addimportwhitelistlog)
+    * [RemoveImportWhiteListLog](#removeimportwhitelistlog)
 
 # Query Methods
 
@@ -469,6 +493,52 @@ None
 }
 ```
 
+## isInImportWhiteList
+
+* Returns True if import statement is in the import white list.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement |
+
+### Returns
+
+`T_INT` - "0x1" if the import statement is in the import white list, otherwise "0x0"
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "isInImportWhiteList",
+            "params": {
+                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "0x1"
+}
+```
 
 
 # Invoke Methods
@@ -915,6 +985,83 @@ Invoke method can initiate state transition.
 }
 ```
 
+## addImportWhiteList
+
+* Adds a new import statement to the import white list
+* Only the owner can call this function.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | New import statement that will be added to the import white list |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "addImportWhiteList",
+            "params": {
+                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
+## removeImportWhiteList
+
+* Removes the import statement from the import white list.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement that is in the import white list |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "removeImportWhiteList",
+            "params": {
+                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
 
 # Eventlog
 
@@ -965,5 +1112,25 @@ Triggered on any successful setMaxStepLimit transaction.
 ```python
 @eventlog(indexed=1)
 def MaxStepLimitChanged(self, contextType: str, value: int):
+    pass
+```
+
+## AddImportWhiteListLog
+
+Trigger on addImportWhiteList transaction change import white list.
+
+```python
+@eventlog(indexed=0)
+def AddImportWhiteListLog(self, add_list: str, add_count: int):
+    pass
+```
+
+## RemoveImportWhiteListLog
+
+Trigger on removeImportWhiteList transaction change import white list.
+
+```python
+@eventlog(indexed=0)
+def RemoveImportWhiteListLog(self, remove_list: str, remove_count: int):
     pass
 ```
