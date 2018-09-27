@@ -53,6 +53,7 @@ dotted_names: dotted_name (',' dotted_name)* '}' <br>
     * [isInScoreBlackList](#isinscoreblacklist)
     * [getVersion](#getVersion)
     * [isInImportWhiteList](#isinimportwhitelist)
+    * [getServiceConfig](#getserviceconfig)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -67,7 +68,7 @@ dotted_names: dotted_name (',' dotted_name)* '}' <br>
     * [removeFromScoreBlackList](#removefromscoreblacklist)
     * [addImportWhiteList](#addimportwhitelist)
     * [removeImportWhiteList](#removeimportwhitelist)
-
+    * [updateServiceConfig](#updateserviceconfig)
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
@@ -76,6 +77,7 @@ dotted_names: dotted_name (',' dotted_name)* '}' <br>
     * [MaxStepLimitChanged](#maxsteplimitchanged)
     * [AddImportWhiteListLog](#addimportwhitelistlog)
     * [RemoveImportWhiteListLog](#removeimportwhitelistlog)
+    * [UpdateServiceConfigLog](#updateserviceconfiglog)
 
 # Query Methods
 
@@ -537,6 +539,46 @@ None
     "jsonrpc": "2.0",
     "id": 1234,
     "result": "0x1"
+}
+```
+
+## getServiceConfig
+
+* Returns table about server config.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "getServiceConfig",
+            "params": {}
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "{'fee': '0x1', 'audit': '0x0', 'deployerWhiteList': '0x1', 'scorePackageValidator': '0x0'}"
 }
 ```
 
@@ -1062,6 +1104,44 @@ Invoke method can initiate state transition.
 }
 ```
 
+## updateServiceConfig
+
+* update service config.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| serviceFlag | [T\_INT](#T_INT) | flag for update service config |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "updateServiceConfig",
+            "params": {
+                "servoceFlag": "0x1"
+            }
+        }
+    }
+}
+```
+
 
 # Eventlog
 
@@ -1132,5 +1212,15 @@ Trigger on removeImportWhiteList transaction change import white list.
 ```python
 @eventlog(indexed=0)
 def RemoveImportWhiteListLog(self, remove_list: str, remove_count: int):
+    pass
+```
+
+## UpdateServiceConfigLog
+
+Trigger on updateServiceConfig transaction.
+
+```python
+@eventlog(indexed=0)
+def UpdateServiceConfigLog(self, serviceFlag: int):
     pass
 ```
