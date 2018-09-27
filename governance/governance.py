@@ -215,22 +215,10 @@ class Governance(IconScoreBase):
             if value:
                 del db[key]
 
-    @staticmethod
-    def _is_builtin_score(score_address: Address) -> bool:
-        builtin_scores = ["cx0000000000000000000000000000000000000001"]
-        return True if str(score_address) in builtin_scores else False
-
     @external(readonly=True)
     def getScoreStatus(self, address: Address) -> dict:
         # check score address
         current_tx_hash, next_tx_hash = self.get_tx_hashes_by_score_address(address)
-        # Governance
-        if self._is_builtin_score(address):
-            result = {"current": {
-                "status": "active"
-            }}
-            return result
-
         if current_tx_hash is None and next_tx_hash is None:
             self.revert('SCORE not found')
         result = {}
