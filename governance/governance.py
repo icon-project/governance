@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from iconservice import *
 
 TAG = 'Governance'
@@ -103,6 +104,8 @@ class Governance(IconScoreBase):
     _STEP_PRICE = 'step_price'
     _MAX_STEP_LIMITS = 'max_step_limits'
     _VERSION = 'version'
+    _IMPORT_WHITE_LIST = 'import_white_list'
+    _IMPORT_WHITE_LIST_KEYS = 'import_white_list_keys'
 
     @eventlog(indexed=1)
     def Accepted(self, txHash: str):
@@ -124,6 +127,18 @@ class Governance(IconScoreBase):
     def MaxStepLimitChanged(self, contextType: str, value: int):
         pass
 
+    @eventlog(indexed=0)
+    def AddImportWhiteListLog(self, addList: str, addCount: int):
+        pass
+
+    @eventlog(indexed=0)
+    def RemoveImportWhiteListLog(self, removeList: str, removeCount: int):
+        pass
+
+    @property
+    def import_white_list_cache(self):
+        return self._get_import_white_list()
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
@@ -134,6 +149,8 @@ class Governance(IconScoreBase):
         self._step_costs = StepCosts(db)
         self._max_step_limits = DictDB(self._MAX_STEP_LIMITS, db, value_type=int)
         self._version = VarDB(self._VERSION, db, value_type=str)
+        self._import_white_list = DictDB(self._IMPORT_WHITE_LIST, db, value_type=str)
+        self._import_white_list_keys = ArrayDB(self._IMPORT_WHITE_LIST_KEYS, db, value_type=str)
 
     def on_install(self, stepPrice: int = 10 ** 10) -> None:
         super().on_install()
@@ -148,6 +165,8 @@ class Governance(IconScoreBase):
         self._set_initial_step_costs()
         # set initial max step limits
         self._set_initial_max_step_limits()
+        # set initial import white list
+        self._set_initial_import_white_list()
 
     def on_update(self) -> None:
         super().on_update()
@@ -156,6 +175,9 @@ class Governance(IconScoreBase):
 
         if self._versions(last_version) < self._versions('0.0.2'):
             self._migrate_v0_0_2()
+
+        # set initial import white list
+        self._set_initial_import_white_list()
 
     def _migrate_v0_0_2(self):
         """
@@ -514,3 +536,191 @@ class Governance(IconScoreBase):
     @external(readonly=True)
     def getVersion(self) -> str:
         return self._version.get()
+
+    def _set_initial_import_white_list(self):
+        key = "iconservice"
+        # if iconsevice has no value set ALL
+        if self._import_white_list[key] == "":
+            self._import_white_list[key] = "*"
+            self._import_white_list_keys.put(key)
+
+    @external
+    def addImportWhiteList(self, import_stmt: str):
+        # only owner can add import white list
+        if self.msg.sender != self.owner:
+            self.revert('Invalid sender: not owner')
+        import_stmt_dict = {}
+        try:
+            import_stmt_dict: dict = self._check_import_stmt(import_stmt)
+        except (json.JSONDecodeError, TypeError) as e:
+            self.revert(f'Invalid import statement: {e}')
+        # add to import white list
+        log_entry = []
+        for key, value in import_stmt_dict.items():
+            old_value: str = self._import_white_list[key]
+            if old_value == "*":
+                # no need to add
+                continue
+
+            if len(value) == 0:
+                # set import white list as ALL
+                self._import_white_list[key] = "*"
+
+                # add to import white list keys
+                if old_value == "":
+                    self._import_white_list_keys.put(key)
+
+                # make added item list for eventlog
+                log_entry.append((key, value))
+            elif old_value == "":
+                # set import white list
+                self._import_white_list[key] = ','.join(value)
+                # add to import white list keys
+                self._import_white_list_keys.put(key)
+                # make added item list for eventlog
+                log_entry.append((key, value))
+            else:
+                old_value_list = old_value.split(',')
+                new_value = []
+                for v in value:
+                    if v not in old_value_list:
+                        new_value.append(v)
+
+                # set import white list
+                self._import_white_list[key] = f'{old_value},{",".join(new_value)}'
+
+                # make added item list for eventlog
+                log_entry.append((key, new_value))
+
+        # make eventlog
+        if len(log_entry):
+            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
+
+        if DEBUG is True:
+            Logger.debug(f'checking added item ({import_stmt}): {self.isInImportWhiteList(import_stmt)}')
+
+    @external
+    def removeImportWhiteList(self, import_stmt: str):
+        # only owner can add import white list
+        if self.msg.sender != self.owner:
+            self.revert('Invalid sender: not owner')
+
+        import_stmt_dict = {}
+        try:
+            import_stmt_dict: dict = self._check_import_stmt(import_stmt)
+        except (json.JSONDecodeError, TypeError) as e:
+            self.revert(f'Invalid import statement: {e}')
+
+        # remove from import white list
+        log_entry = []
+        for key, value in import_stmt_dict.items():
+            old_value: str = self._import_white_list[key]
+            if old_value == "*":
+                if len(value) == 0:
+                    # remove import white list
+                    self._remove_import_white_list(key)
+
+                    # make added item list for eventlog
+                    log_entry.append((key, value))
+                continue
+
+            if len(value) == 0:
+                # remove import white list
+                self._remove_import_white_list(key)
+
+                # make added item list for eventlog
+                log_entry.append((key, value))
+
+                # add to import white list keys
+                self._import_white_list_keys.put(key)
+            else:
+                old_value_list = old_value.split(',')
+                remove_value = []
+                new_value = []
+                for v in old_value_list:
+                    if v in value:
+                        remove_value.append(v)
+                    else:
+                        new_value.append(v)
+
+                # set import white list
+                if len(new_value):
+                    self._import_white_list[key] = f'{",".join(new_value)}'
+                else:
+                    self._remove_import_white_list(key)
+
+                # make added item list for eventlog
+                log_entry.append((key, remove_value))
+
+        if len(log_entry):
+            # make eventlog
+            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
+
+        if DEBUG is True:
+            Logger.debug(f'checking removed item ({import_stmt}): {self.isInImportWhiteList(import_stmt)}')
+
+    @external(readonly=True)
+    def isInImportWhiteList(self, import_stmt: str) -> bool:
+        try:
+            import_stmt_dict: dict = self._check_import_stmt(import_stmt)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f'{e}')
+
+        cache_import_white_list = self._get_import_white_list()
+        for key, value in import_stmt_dict.items():
+            old_value: list = cache_import_white_list.get(key, None)
+            if old_value is None:
+                return False
+
+            if old_value[0] == "*":
+                # import white list has ALL. See next key
+                continue
+
+            if len(value) == 0:
+                # input is ALL
+                return False
+
+            for v in value:
+                if v not in old_value:
+                    return False
+
+        if DEBUG is True:
+            Logger.debug(f'({import_stmt}) is in import white list')
+        return True
+
+    @staticmethod
+    def _check_import_stmt(import_stmt: str) -> dict:
+        Logger.debug(f'check_import_stmt: {import_stmt}')
+        import_stmt_dict: dict = json.loads(import_stmt.replace("\'", "\""))
+        for key, value in import_stmt_dict.items():
+            if not isinstance(key, str):
+                raise TypeError("Key must be of type `str`")
+
+            if not isinstance(value, list):
+                raise TypeError("Value must be of type `list`")
+            else:
+                for v in value:
+                    if not isinstance(v, str):
+                        raise TypeError("Element of value must be of type `str`")
+
+        Logger.debug(f'check_import_stmt_dict: {import_stmt_dict}')
+        return import_stmt_dict
+
+    def _get_import_white_list(self) -> dict:
+        whitelist = {}
+        for v in self._import_white_list_keys:
+            values: str = self._import_white_list[v]
+            whitelist[v] = values.split(',')
+
+        return whitelist
+
+    def _remove_import_white_list(self, key: str):
+        # remove from import white list
+        self._import_white_list.remove(key)
+
+        # remove from import white list keys
+        top = self._import_white_list_keys.pop()
+        if top != key:
+            for i in range(len(self._import_white_list_keys)):
+                if self._import_white_list_keys[i] == key:
+                    self._import_white_list_keys[i] = top
