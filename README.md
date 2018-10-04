@@ -54,6 +54,7 @@ dotted_names: dotted_name (',' dotted_name)* '}' <br>
     * [getVersion](#getVersion)
     * [isInImportWhiteList](#isinimportwhitelist)
     * [getServiceConfig](#getserviceconfig)
+    * [getRevision](#getrevision)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -69,6 +70,7 @@ dotted_names: dotted_name (',' dotted_name)* '}' <br>
     * [addImportWhiteList](#addimportwhitelist)
     * [removeImportWhiteList](#removeimportwhitelist)
     * [updateServiceConfig](#updateserviceconfig)
+    * [setRevision](#setrevision)
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
@@ -579,6 +581,46 @@ None
     "jsonrpc": "2.0",
     "id": 1234,
     "result": "{'fee': '0x1', 'audit': '0x0', 'deployerWhiteList': '0x1', 'scorePackageValidator': '0x0'}"
+}
+```
+
+## getRevision
+
+* Returns info about revision.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "getRevision",
+            "params": {}
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "{'revisionCode': '1', 'revisionDebug': '1.1.0'}"
 }
 ```
 
@@ -1136,6 +1178,47 @@ Invoke method can initiate state transition.
             "method": "updateServiceConfig",
             "params": {
                 "servoceFlag": "0x1"
+            }
+        }
+    }
+}
+```
+
+## setRevision
+
+* set revision and debug version.
+* have to increasement
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| code | [T\_INT](#T_INT) | revision number |
+| debug | [T\_STRING](#T_STRING) | debug version |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "setRevision",
+            "params": {
+                "code": "0x1",
+                "debug": "1.1.0"
             }
         }
     }
