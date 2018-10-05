@@ -202,8 +202,6 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_3()
 
         self._version.set('0.0.3')
-        self._revision_code.set(3)
-        self._revision_debug.set("1.1.0")
 
         self._revision_code.set(2)
         self._revision_debug.set("1.1.0")
