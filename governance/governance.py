@@ -205,6 +205,9 @@ class Governance(IconSystemScoreBase):
         self._revision_code.set(3)
         self._revision_debug.set("1.1.0")
 
+        self._revision_code.set(2)
+        self._revision_debug.set("1.1.0")
+
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
         return self._versions(last_version) < self._versions(target_version)
