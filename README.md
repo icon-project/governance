@@ -505,7 +505,7 @@ None
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement |
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement |
 
 ### Returns
 
@@ -527,7 +527,7 @@ None
         "data": {
             "method": "isInImportWhiteList",
             "params": {
-                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
             }
         }
     }
@@ -620,7 +620,7 @@ None
 {
     "jsonrpc": "2.0",
     "id": 1234,
-    "result": "{'revisionCode': '1', 'revisionDebug': '1.1.0'}"
+    "result": "{'code': '1', 'name': '1.1.0'}"
 }
 ```
 
@@ -1078,7 +1078,7 @@ Invoke method can initiate state transition.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | New import statement that will be added to the import white list |
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | New import statement that will be added to the import white list |
 
 ### Examples
 
@@ -1101,7 +1101,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "addImportWhiteList",
             "params": {
-                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
             }
         }
     }
@@ -1116,7 +1116,7 @@ Invoke method can initiate state transition.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| import_stmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement that is in the import white list |
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement that is in the import white list |
 
 ### Examples
 
@@ -1139,7 +1139,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "removeImportWhiteList",
             "params": {
-                "import_stmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
             }
         }
     }
@@ -1194,7 +1194,7 @@ Invoke method can initiate state transition.
 | Key | Value Type | Description |
 |:----|:-----------|-----|
 | code | [T\_INT](#T_INT) | revision number |
-| debug | [T\_STRING](#T_STRING) | debug version |
+| name | [T\_STRING](#T_STRING) | revision name |
 
 ### Examples
 
@@ -1218,7 +1218,7 @@ Invoke method can initiate state transition.
             "method": "setRevision",
             "params": {
                 "code": "0x1",
-                "debug": "1.1.0"
+                "name": "1.1.0"
             }
         }
     }
