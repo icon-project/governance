@@ -26,12 +26,13 @@ The most commonly used Value types are as follows.
 
 ## Import statement
 ### Grammar
-import_stmt: '{' import_element (',' import_element)* '}' <br>
+import_stmt: "{" import_element ("," import_element)* "}" <br>
 import_element: (import_name | import_from) <br>
-import_name:  dotted_name ': []' <br>
-Import_from:  dotted_name ': [' dotted_names ']' <br>
-dotted_name: '\\''NAME ('.' NAME)*'\\'' <br>
-dotted_names: dotted_name (',' dotted_name)* '}' <br>
+import_name:  dotted_name ": []" <br>
+Import_from:  dotted_name ": [" dotted_names "]" <br>
+dotted_names: dotted_name ("," dotted_name) * <br>
+dotted_name: "'"NAME ("." NAME)*"'" <br>
+NAME: Not an empty string
 
 ### Exmaples
 | python import | import statement |
