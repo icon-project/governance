@@ -1035,6 +1035,7 @@ Invoke method can initiate state transition.
 ## removeFromScoreBlackList
 
 * Removes the SCORE address from the black list.
+* Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
 
@@ -1073,7 +1074,7 @@ Invoke method can initiate state transition.
 ## addImportWhiteList
 
 * Adds a new import statement to the import white list
-* Only the owner can call this function.
+* Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
 
@@ -1112,6 +1113,7 @@ Invoke method can initiate state transition.
 ## removeImportWhiteList
 
 * Removes the import statement from the import white list.
+* Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
 
@@ -1150,14 +1152,26 @@ Invoke method can initiate state transition.
 ## updateServiceConfig
 
 * update service config.
+* this value is implemented using BitFlag
+* Only the owner of the Governance SCORE can call this function.
+
+### IconServiceConfig
+| Key | BitFlag Value | Description |
+|----|----|----|
+| fee | 1 | Enable Fee |
+| audit | 2 | Enalble Audit |
+| deployerWhiteList | 4 | Enable DeployWhiteList |
+| scorePackageValidator | 8 | Enable SCORE Package Validator |
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| serviceFlag | [T\_INT](#T_INT) | flag for update service config |
+| serviceFlag | [T\_INT](#T_INT) | flag for update service config|
 
 ### Examples
+* set value 3 if you want to activate service about Fee and Audit
+* set value 8 if you want to activate service about only SCORE Package Validator
 
 #### Request
 
@@ -1189,6 +1203,7 @@ Invoke method can initiate state transition.
 
 * set revision and debug version.
 * have to increasement
+* Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
 
