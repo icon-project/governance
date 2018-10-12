@@ -20,8 +20,28 @@ The most commonly used Value types are as follows.
 | <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a> | "cx" + 40 digits HEX string | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32 |
 | <a id="T_HASH">T\_HASH</a> | "0x" + 64 digits HEX string | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
 | <a id="T_INT">T\_INT</a> | "0x" + lowercase HEX string | 0xa |
+| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}" |
 | <a id="T_BIN_DATA">T\_BIN\_DATA</a> | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2 |
 | <a id="T_SIG">T\_SIG</a> | base64 encoded string | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
+
+## Import statement
+### Grammar
+import_stmt: "{" import_element ("," import_element)* "}" <br>
+import_element: (import_name | import_from) <br>
+import_name:  dotted_name ": []" <br>
+Import_from:  dotted_name ": [" dotted_names "]" <br>
+dotted_names: dotted_name ("," dotted_name) * <br>
+dotted_name: "'"NAME ("." NAME)*"'" <br>
+NAME: Not an empty string
+
+### Exmaples
+| python import | import statement |
+|:------------- |:-----------------|
+|import json | { 'json' : [] } |
+|from json import * |{ 'json' : [] } |
+|from os import path | { 'os' : ['path'] } |
+|from base.exception import ExceptionCode, RevertException | { 'base.exception' : ['ExceptionCode', 'RevertException'] } |
+|import json <br> from os import path <br> from base.exception import ExceptionCode, RevertException <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode', 'RevertException'] } |
 
 # Methods List
 
@@ -33,6 +53,9 @@ The most commonly used Value types are as follows.
     * [isDeployer](#isdeployer)
     * [isInScoreBlackList](#isinscoreblacklist)
     * [getVersion](#getVersion)
+    * [isInImportWhiteList](#isinimportwhitelist)
+    * [getServiceConfig](#getserviceconfig)
+    * [getRevision](#getrevision)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -45,13 +68,19 @@ The most commonly used Value types are as follows.
     * [removeDeployer](#removedeployer)
     * [addToScoreBlackList](#addtoscoreblacklist)
     * [removeFromScoreBlackList](#removefromscoreblacklist)
+    * [addImportWhiteList](#addimportwhitelist)
+    * [removeImportWhiteList](#removeimportwhitelist)
+    * [updateServiceConfig](#updateserviceconfig)
+    * [setRevision](#setrevision)
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
     * [StepCostChanged](#stepcostchanged)
     * [MaxStepLimitChanged](#maxsteplimitchanged)
-
+    * [AddImportWhiteListLog](#addimportwhitelistlog)
+    * [RemoveImportWhiteListLog](#removeimportwhitelistlog)
+    * [UpdateServiceConfigLog](#updateserviceconfiglog)
 
 # Query Methods
 
@@ -469,6 +498,132 @@ None
 }
 ```
 
+## isInImportWhiteList
+
+* Returns True if import statement is in the import white list.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement |
+
+### Returns
+
+`T_INT` - "0x1" if the import statement is in the import white list, otherwise "0x0"
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "isInImportWhiteList",
+            "params": {
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "0x1"
+}
+```
+
+## getServiceConfig
+
+* Returns table about server config.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "getServiceConfig",
+            "params": {}
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "{'fee': '0x1', 'audit': '0x0', 'deployerWhiteList': '0x1', 'scorePackageValidator': '0x0'}"
+}
+```
+
+## getRevision
+
+* Returns info about revision.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_call",
+    "params": {
+        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
+        "to": "cx0000000000000000000000000000000000000001",
+        "dataType": "call",
+        "data": {
+            "method": "getRevision",
+            "params": {}
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "result": "{'code': '1', 'name': '1.1.0'}"
+}
+```
 
 
 # Invoke Methods
@@ -880,6 +1035,7 @@ Invoke method can initiate state transition.
 ## removeFromScoreBlackList
 
 * Removes the SCORE address from the black list.
+* Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
 
@@ -909,6 +1065,176 @@ Invoke method can initiate state transition.
             "method": "removeFromScoreBlackList",
             "params": {
                 "address": "cx2d54d5ca2a1dffbcfc3fb2c86cc07cb826f6b931"
+            }
+        }
+    }
+}
+```
+
+## addImportWhiteList
+
+* Adds a new import statement to the import white list
+* Only the owner of the Governance SCORE can call this function.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | New import statement that will be added to the import white list |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "addImportWhiteList",
+            "params": {
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
+## removeImportWhiteList
+
+* Removes the import statement from the import white list.
+* Only the owner of the Governance SCORE can call this function.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement that is in the import white list |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "removeImportWhiteList",
+            "params": {
+                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+            }
+        }
+    }
+}
+```
+
+## updateServiceConfig
+
+* update service config.
+* this value is implemented using BitFlag
+* Only the owner of the Governance SCORE can call this function.
+
+### IconServiceConfig
+| Key | BitFlag Value | Description |
+|----|----|----|
+| fee | 1 | Enable Fee |
+| audit | 2 | Enalble Audit |
+| deployerWhiteList | 4 | Enable DeployWhiteList |
+| scorePackageValidator | 8 | Enable SCORE Package Validator |
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| serviceFlag | [T\_INT](#T_INT) | flag for update service config|
+
+### Examples
+* set value 3 if you want to activate service about Fee and Audit
+* set value 8 if you want to activate service about only SCORE Package Validator
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "updateServiceConfig",
+            "params": {
+                "servoceFlag": "0x1"
+            }
+        }
+    }
+}
+```
+
+## setRevision
+
+* set revision and debug version.
+* have to increasement
+* Only the owner of the Governance SCORE can call this function.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| code | [T\_INT](#T_INT) | revision number |
+| name | [T\_STRING](#T_STRING) | revision name |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "setRevision",
+            "params": {
+                "code": "0x1",
+                "name": "1.1.0"
             }
         }
     }
@@ -965,5 +1291,35 @@ Triggered on any successful setMaxStepLimit transaction.
 ```python
 @eventlog(indexed=1)
 def MaxStepLimitChanged(self, contextType: str, value: int):
+    pass
+```
+
+## AddImportWhiteListLog
+
+Trigger on addImportWhiteList transaction change import white list.
+
+```python
+@eventlog(indexed=0)
+def AddImportWhiteListLog(self, add_list: str, add_count: int):
+    pass
+```
+
+## RemoveImportWhiteListLog
+
+Trigger on removeImportWhiteList transaction change import white list.
+
+```python
+@eventlog(indexed=0)
+def RemoveImportWhiteListLog(self, remove_list: str, remove_count: int):
+    pass
+```
+
+## UpdateServiceConfigLog
+
+Trigger on updateServiceConfig transaction.
+
+```python
+@eventlog(indexed=0)
+def UpdateServiceConfigLog(self, serviceFlag: int):
     pass
 ```
