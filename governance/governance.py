@@ -199,8 +199,10 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_3()
         if self.is_less_than_target_version('0.0.4'):
             self._migrate_v0_0_4()
+        if self.is_less_than_target_version('0.0.5'):
+            self._migrate_v0_0_5()
 
-        self._version.set('0.0.4')
+        self._version.set('0.0.5')
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
@@ -229,6 +231,9 @@ class Governance(IconSystemScoreBase):
 
     def _migrate_v0_0_4(self):
         pass
+
+    def _migrate_v0_0_5(self):
+        self._set_initial_revision()
 
     @staticmethod
     def _versions(version: str):
@@ -829,12 +834,8 @@ class Governance(IconSystemScoreBase):
             self.revert('Invalid sender: not owner')
 
         prev_code = self._revision_code.get()
-        if code <= prev_code:
+        if code < prev_code:
             self.revert(f"can't decrease code")
-
-        prev_name = self._revision_name.get()
-        if self._versions(name) <= self._versions(prev_name):
-            self.revert(f"can't decrease name")
 
         self._revision_code.set(code)
         self._revision_name.set(name)
