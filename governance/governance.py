@@ -556,7 +556,7 @@ class Governance(IconSystemScoreBase):
 
     def _set_initial_revision(self):
         self._revision_code.set(2)
-        self._revision_name.set("1.1.0")
+        self._revision_name.set("1.1.2")
 
     @external(readonly=True)
     def getStepCosts(self) -> dict:
