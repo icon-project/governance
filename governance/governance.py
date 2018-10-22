@@ -111,7 +111,7 @@ class Governance(IconSystemScoreBase):
     _REVISION_NAME = 'revision_name'
 
     @eventlog(indexed=1)
-    def Accepted(self, txHash: str):
+    def Accepted(self, txHash: str, warning: str):
         pass
 
     @eventlog(indexed=1)
@@ -201,8 +201,10 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_4()
         if self.is_less_than_target_version('0.0.5'):
             self._migrate_v0_0_5()
+        if self.is_less_than_target_version('0.0.6'):
+            self._migrate_v0_0_6()
 
-        self._version.set('0.0.5')
+        self._version.set('0.0.6')
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
@@ -234,6 +236,9 @@ class Governance(IconSystemScoreBase):
 
     def _migrate_v0_0_5(self):
         self._set_initial_revision()
+
+    def _migrate_v0_0_6(self):
+        pass
 
     @staticmethod
     def _versions(version: str):
@@ -339,7 +344,7 @@ class Governance(IconSystemScoreBase):
             self.StepPriceChanged(stepPrice)
 
     @external
-    def acceptScore(self, txHash: bytes):
+    def acceptScore(self, txHash: bytes, warning: str =""):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
@@ -369,7 +374,7 @@ class Governance(IconSystemScoreBase):
 
         self._audit_status[txHash] = self.tx.hash
 
-        self.Accepted('0x' + txHash.hex())
+        self.Accepted('0x' + txHash.hex(), warning)
 
     def _deploy(self, tx_hash: bytes, score_addr: Address):
         owner = self.get_owner(score_addr)

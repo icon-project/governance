@@ -638,9 +638,10 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| txHash | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy transaction. |
+| Key     | Value Type         | Description                                       |
+| :------ | :----------------- | ------------------------------------------------- |
+| txHash  | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy transaction. |
+| warning | T\_TEXT            | Warning message about SCORE after auditing        |
 
 ### Examples
 
@@ -663,7 +664,8 @@ Invoke method can initiate state transition.
         "data": {
             "method": "acceptScore",
             "params": {
-                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+                "warning": "Too many loop in your SCORE, recommend to reduce the use of loops"
             }
         }
     }
