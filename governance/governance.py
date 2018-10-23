@@ -223,7 +223,6 @@ class Governance(IconSystemScoreBase):
                     self._step_costs._step_types.put(step_type)
 
         self._set_initial_step_costs()
-        self._set_initial_max_step_limits()
 
     def _migrate_v0_0_3(self):
         # set initial import white list
