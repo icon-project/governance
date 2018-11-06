@@ -381,7 +381,7 @@ class Governance(IconSystemScoreBase):
         tmp_sender = self.msg.sender
         self.msg.sender = owner
         try:
-            self._context.deploy(tx_hash)
+            self.deploy(tx_hash)
         finally:
             self.msg.sender = tmp_sender
 
