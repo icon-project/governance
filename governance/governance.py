@@ -24,6 +24,7 @@ NEXT = 'next'
 STATUS = 'status'
 DEPLOY_TX_HASH = 'deployTxHash'
 AUDIT_TX_HASH = 'auditTxHash'
+DEPOSIT_INFO = 'depositInfo'
 VALID_STATUS_KEYS = [STATUS, DEPLOY_TX_HASH, AUDIT_TX_HASH]
 
 STATUS_PENDING = 'pending'
@@ -52,6 +53,11 @@ INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
 
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
+
+
+class SystemInterface(InterfaceScore):
+    @interface
+    def getScoreDepositInfo(self, address: Address) -> dict: pass
 
 
 class StepCosts:
@@ -332,6 +338,11 @@ class Governance(IconSystemScoreBase):
                         }}
             else:
                 result = {}
+
+            system = self.create_interface_score(ZERO_SCORE_ADDRESS, SystemInterface)
+            deposit_info = system.getScoreDepositInfo(address)
+            result[DEPOSIT_INFO] = deposit_info
+
         return result
 
     @external(readonly=True)
