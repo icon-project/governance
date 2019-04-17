@@ -189,6 +189,8 @@ class Governance(IconSystemScoreBase):
         self._set_initial_import_white_list()
         # set initial service config
         self._set_initial_service_config()
+        # set initial revision
+        self._set_initial_revision()
 
     def on_update(self) -> None:
         super().on_update()
@@ -219,15 +221,11 @@ class Governance(IconSystemScoreBase):
                     self._step_costs._step_types.put(step_type)
 
         self._set_initial_step_costs()
-        self._set_initial_max_step_limits()
 
     def _migrate_v0_0_3(self):
-        # set initial import white list
+        self._set_initial_max_step_limits()
         self._set_initial_import_white_list()
         self._set_initial_service_config()
-
-        self._set_initial_max_step_limits()
-        self._set_initial_revision()
 
     def _migrate_v0_0_4(self):
         pass
@@ -600,7 +598,7 @@ class Governance(IconSystemScoreBase):
 
     def _set_initial_import_white_list(self):
         key = "iconservice"
-        # if iconsevice has no value set ALL
+        # if iconservice has no value set ALL
         if self._import_white_list[key] == "":
             self._import_white_list[key] = "*"
             self._import_white_list_keys.put(key)
