@@ -142,6 +142,10 @@ class Governance(IconSystemScoreBase):
     def UpdateServiceConfigLog(self, serviceFlag: int):
         pass
 
+    @eventlog(indexed=0)
+    def RevisionChanged(self, revisionCode: int, revisionName: str):
+        pass
+
     @property
     def import_white_list_cache(self) -> dict:
         return self._get_import_white_list()
@@ -837,6 +841,7 @@ class Governance(IconSystemScoreBase):
 
         self._revision_code.set(code)
         self._revision_name.set(name)
+        self.RevisionChanged(code, name)
 
     @external(readonly=True)
     def getRevision(self) -> dict:
