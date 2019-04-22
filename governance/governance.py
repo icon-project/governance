@@ -53,6 +53,12 @@ INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
 
+ZERO_TX_HASH = bytes(32)
+
+
+def _is_tx_hash_valid(tx_hash: bytes) -> bool:
+    return tx_hash is not None and tx_hash != ZERO_TX_HASH
+
 
 class StepCosts:
     """
@@ -276,7 +282,9 @@ class Governance(IconSystemScoreBase):
         active = self.is_score_active(address)
 
         # install audit
-        if current_tx_hash is None and next_tx_hash and active is False:
+        if not _is_tx_hash_valid(current_tx_hash) \
+                and _is_tx_hash_valid(next_tx_hash) \
+                and active is False:
             reject_tx_hash = self._reject_status[next_tx_hash]
             if reject_tx_hash:
                 result = {
@@ -291,7 +299,9 @@ class Governance(IconSystemScoreBase):
                         STATUS: STATUS_PENDING,
                         DEPLOY_TX_HASH: next_tx_hash
                     }}
-        elif current_tx_hash and next_tx_hash is None and active is True:
+        elif _is_tx_hash_valid(current_tx_hash) \
+                and not _is_tx_hash_valid(next_tx_hash) \
+                and active is True:
             audit_tx_hash = self._audit_status[current_tx_hash]
             result = {
                 CURRENT: {
@@ -302,7 +312,9 @@ class Governance(IconSystemScoreBase):
                 result[CURRENT][AUDIT_TX_HASH] = audit_tx_hash
         else:
             # update audit
-            if current_tx_hash and next_tx_hash and active is True:
+            if _is_tx_hash_valid(current_tx_hash) \
+                    and _is_tx_hash_valid(next_tx_hash) \
+                    and active is True:
                 current_audit_tx_hash = self._audit_status[current_tx_hash]
                 next_reject_tx_hash = self._reject_status[next_tx_hash]
                 if next_reject_tx_hash:
