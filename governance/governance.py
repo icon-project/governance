@@ -24,6 +24,7 @@ NEXT = 'next'
 STATUS = 'status'
 DEPLOY_TX_HASH = 'deployTxHash'
 AUDIT_TX_HASH = 'auditTxHash'
+DEPOSIT_INFO = 'depositInfo'
 VALID_STATUS_KEYS = [STATUS, DEPLOY_TX_HASH, AUDIT_TX_HASH]
 
 STATUS_PENDING = 'pending'
@@ -58,6 +59,11 @@ ZERO_TX_HASH = bytes(32)
 
 def _is_tx_hash_valid(tx_hash: bytes) -> bool:
     return tx_hash is not None and tx_hash != ZERO_TX_HASH
+
+
+class SystemInterface(InterfaceScore):
+    @interface
+    def getScoreDepositInfo(self, address: Address) -> dict: pass
 
 
 class StepCosts:
@@ -342,6 +348,11 @@ class Governance(IconSystemScoreBase):
                         }}
             else:
                 result = {}
+
+            system = self.create_interface_score(ZERO_SCORE_ADDRESS, SystemInterface)
+            deposit_info = system.getScoreDepositInfo(address)
+            result[DEPOSIT_INFO] = deposit_info
+
         return result
 
     @external(readonly=True)
