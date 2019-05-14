@@ -222,7 +222,7 @@ class Governance(IconSystemScoreBase):
         if self.is_less_than_target_version('0.0.6'):
             self._migrate_v0_0_6()
 
-        self._version.set('0.0.6')
+        self._version.set('0.0.7')
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
