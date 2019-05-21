@@ -53,6 +53,12 @@ INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
 
+ZERO_TX_HASH = bytes(32)
+
+
+def _is_tx_hash_valid(tx_hash: bytes) -> bool:
+    return tx_hash is not None and tx_hash != ZERO_TX_HASH
+
 
 class StepCosts:
     """
@@ -142,6 +148,10 @@ class Governance(IconSystemScoreBase):
     def UpdateServiceConfigLog(self, serviceFlag: int):
         pass
 
+    @eventlog(indexed=0)
+    def RevisionChanged(self, revisionCode: int, revisionName: str):
+        pass
+
     @property
     def import_white_list_cache(self) -> dict:
         return self._get_import_white_list()
@@ -189,6 +199,8 @@ class Governance(IconSystemScoreBase):
         self._set_initial_import_white_list()
         # set initial service config
         self._set_initial_service_config()
+        # set initial revision
+        self._set_initial_revision()
 
     def on_update(self) -> None:
         super().on_update()
@@ -201,8 +213,10 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_4()
         if self.is_less_than_target_version('0.0.5'):
             self._migrate_v0_0_5()
+        if self.is_less_than_target_version('0.0.6'):
+            self._migrate_v0_0_6()
 
-        self._version.set('0.0.5')
+        self._version.set('0.0.6')
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
@@ -219,21 +233,20 @@ class Governance(IconSystemScoreBase):
                     self._step_costs._step_types.put(step_type)
 
         self._set_initial_step_costs()
-        self._set_initial_max_step_limits()
 
     def _migrate_v0_0_3(self):
-        # set initial import white list
+        self._set_initial_max_step_limits()
         self._set_initial_import_white_list()
         self._set_initial_service_config()
-
-        self._set_initial_max_step_limits()
-        self._set_initial_revision()
 
     def _migrate_v0_0_4(self):
         pass
 
     def _migrate_v0_0_5(self):
         self._set_initial_revision()
+
+    def _migrate_v0_0_6(self):
+        pass
 
     @staticmethod
     def _versions(version: str):
@@ -269,7 +282,9 @@ class Governance(IconSystemScoreBase):
         active = self.is_score_active(address)
 
         # install audit
-        if current_tx_hash is None and next_tx_hash and active is False:
+        if not _is_tx_hash_valid(current_tx_hash) \
+                and _is_tx_hash_valid(next_tx_hash) \
+                and active is False:
             reject_tx_hash = self._reject_status[next_tx_hash]
             if reject_tx_hash:
                 result = {
@@ -284,7 +299,9 @@ class Governance(IconSystemScoreBase):
                         STATUS: STATUS_PENDING,
                         DEPLOY_TX_HASH: next_tx_hash
                     }}
-        elif current_tx_hash and next_tx_hash is None and active is True:
+        elif _is_tx_hash_valid(current_tx_hash) \
+                and not _is_tx_hash_valid(next_tx_hash) \
+                and active is True:
             audit_tx_hash = self._audit_status[current_tx_hash]
             result = {
                 CURRENT: {
@@ -295,7 +312,9 @@ class Governance(IconSystemScoreBase):
                 result[CURRENT][AUDIT_TX_HASH] = audit_tx_hash
         else:
             # update audit
-            if current_tx_hash and next_tx_hash and active is True:
+            if _is_tx_hash_valid(current_tx_hash) \
+                    and _is_tx_hash_valid(next_tx_hash) \
+                    and active is True:
                 current_audit_tx_hash = self._audit_status[current_tx_hash]
                 next_reject_tx_hash = self._reject_status[next_tx_hash]
                 if next_reject_tx_hash:
@@ -600,7 +619,7 @@ class Governance(IconSystemScoreBase):
 
     def _set_initial_import_white_list(self):
         key = "iconservice"
-        # if iconsevice has no value set ALL
+        # if iconservice has no value set ALL
         if self._import_white_list[key] == "":
             self._import_white_list[key] = "*"
             self._import_white_list_keys.put(key)
@@ -839,6 +858,7 @@ class Governance(IconSystemScoreBase):
 
         self._revision_code.set(code)
         self._revision_name.set(name)
+        self.RevisionChanged(code, name)
 
     @external(readonly=True)
     def getRevision(self) -> dict:
