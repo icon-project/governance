@@ -123,7 +123,6 @@ class Governance(IconSystemScoreBase):
     _REJECT_STATUS = 'reject_status'
     _REVISION_CODE = 'revision_code'
     _REVISION_NAME = 'revision_name'
-    _PROPOSAL_LIST = 'proposal_list'
 
     @eventlog(indexed=1)
     def Accepted(self, txHash: str):
@@ -181,7 +180,6 @@ class Governance(IconSystemScoreBase):
         self._score_black_list = ArrayDB(self._SCORE_BLACK_LIST, db, value_type=Address)
         self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
         self._step_costs = StepCosts(db)
-        self._network_proposal = NetworkProposal(db)
         self._max_step_limits = DictDB(self._MAX_STEP_LIMITS, db, value_type=int)
         self._version = VarDB(self._VERSION, db, value_type=str)
         self._import_white_list = DictDB(self._IMPORT_WHITE_LIST, db, value_type=str)
@@ -191,6 +189,7 @@ class Governance(IconSystemScoreBase):
         self._reject_status = DictDB(self._REJECT_STATUS, db, value_type=bytes)
         self._revision_code = VarDB(self._REVISION_CODE, db, value_type=int)
         self._revision_name = VarDB(self._REVISION_NAME, db, value_type=str)
+        self._network_proposal = NetworkProposal(db)
 
     def on_install(self, stepPrice: int = 10 ** 10) -> None:
         super().on_install()
