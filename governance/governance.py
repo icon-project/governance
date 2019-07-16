@@ -944,11 +944,11 @@ class Governance(IconSystemScoreBase):
 
         if approved:
             if proposal_type == NetworkProposalType.TEXT:
-                self._set_text(**value)
+                return
             elif proposal_type == NetworkProposalType.REVISION:
                 self._set_revision(**value)
             elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
-                self._remove_malicious_score(**value)
+                self._malicious_score(**value)
             elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
                 self._disqualify_prep(**value)
             elif proposal_type == NetworkProposalType.STEP_PRICE:
@@ -980,3 +980,12 @@ class Governance(IconSystemScoreBase):
             if prep.address == address:
                 return True
         return False
+
+    def _malicious_score(self):
+        pass
+
+    def _disqualify_prep(self):
+        pass
+
+    def _set_step_price(self):
+        pass
