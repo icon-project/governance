@@ -228,32 +228,42 @@ class ProposalInfo:
 
         :return: ProposalInfo in bytes
         """
-        # FIXME convert values in 'value' member to json format
         proposal_info_in_dict = vars(self)
         proposal_info_in_dict["id"] = bytes.hex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = str(proposal_info_in_dict["proposer"])
-
+        self._convert_value_to_json(proposal_info_in_dict["value"])
         return json_dumps(proposal_info_in_dict).encode()
 
-    @staticmethod
-    def from_bytes(buf: bytes) -> 'ProposalInfo':
+    def from_bytes(self, buf: bytes) -> 'ProposalInfo':
         """ Create ProposalInfo object from bytes
 
         :param buf: ProposalInfo in bytes
         :return: ProposalInfo object
         """
-        # FIXME convert 'value' to original value
         proposal_info_in_dict: dict = json_loads(buf.decode())
         proposal_info_in_dict["id"] = bytes.fromhex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = Address.from_string(proposal_info_in_dict["proposer"])
+        self._convert_value_to_original(proposal_info_in_dict["value"])
         return ProposalInfo(**proposal_info_in_dict)
 
     @staticmethod
-    def _convert_to_original():
-        # TODO use type converter in icon service
-        pass
+    def _convert_value_to_json(value_to_be_converted: dict):
+        """ Convert value in dict to json for serialization
+
+        :param value_to_be_converted: value in dict to be converted
+        :return: None
+        """
+        for key, value in value_to_be_converted.items():
+            if isinstance(value, Address):
+                value_to_be_converted[key] = str(value)
 
     @staticmethod
-    def _convert_to_json():
-        # TODO use type converter in icon service
-        pass
+    def _convert_value_to_original(converted_value: dict):
+        """ Convert value in dict to original for deserialization
+
+        :param converted_value: converted value in dict
+        :return: None
+        """
+        for key, value in converted_value.items():
+            if key == "address" and isinstance(value, str):
+                converted_value[key] = Address.from_string(value)
