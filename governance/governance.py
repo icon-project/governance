@@ -16,6 +16,8 @@
 
 from iconservice import *
 
+from .network_proposal import NetworkProposal, NetworkProposalType
+
 TAG = 'Governance'
 DEBUG = False
 
@@ -121,6 +123,7 @@ class Governance(IconSystemScoreBase):
     _REJECT_STATUS = 'reject_status'
     _REVISION_CODE = 'revision_code'
     _REVISION_NAME = 'revision_name'
+    _PROPOSAL_LIST = 'proposal_list'
 
     @eventlog(indexed=1)
     def Accepted(self, txHash: str):
@@ -178,6 +181,7 @@ class Governance(IconSystemScoreBase):
         self._score_black_list = ArrayDB(self._SCORE_BLACK_LIST, db, value_type=Address)
         self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
         self._step_costs = StepCosts(db)
+        self._network_proposal = NetworkProposal(db)
         self._max_step_limits = DictDB(self._MAX_STEP_LIMITS, db, value_type=int)
         self._version = VarDB(self._VERSION, db, value_type=str)
         self._import_white_list = DictDB(self._IMPORT_WHITE_LIST, db, value_type=str)
@@ -858,15 +862,10 @@ class Governance(IconSystemScoreBase):
                 table[flag.name] = False
         return table
 
-    @external
-    def setRevision(self, code: int, name: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-
+    def _set_revision(self, code: int, name: str):
         prev_code = self._revision_code.get()
         if code < prev_code:
-            self.revert(f"can't decrease code")
+            revert(f"can't decrease code")
 
         self._revision_code.set(code)
         self._revision_name.set(name)
@@ -875,3 +874,96 @@ class Governance(IconSystemScoreBase):
     @external(readonly=True)
     def getRevision(self) -> dict:
         return {'code': self._revision_code.get(), 'name': self._revision_name.get()}
+
+    @external
+    def registerProposal(self, description: str, type: int, value: bytes):
+        """ Register a Proposal with information like description, type and value by main prep
+
+        :param description: description of the proposal
+        :param type: proposal type
+        :param value: encoded value
+        :return: None
+        """
+        if not self._check_main_prep(self.msg.sender):
+            revert("No permission - only for main prep")
+
+        value_in_dict = json_loads(value.decode())
+        self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, description, type, value_in_dict,
+                                                 self._get_end_block_height_of_term())
+
+    @external
+    def cancelProposal(self, txHash: bytes):
+        """ Cancel Proposal if it have not been approved
+
+        :txHash: transaction hash to generate when registering proposal
+        :return: None
+        """
+
+        self._network_proposal.cancel_proposal(txHash, self.msg.sender)
+
+    @external
+    def voteProposal(self, txHash: bytes, voteType: int):
+        """ Vote for Proposal - agree or disagree
+
+        :txHash: transaction hash to generate when registering proposal
+        :voteType: agree(1) or disagree(0)
+        :return: None
+        """
+        if not self._check_main_prep(self.msg.sender):
+            revert("No permission - only for main prep")
+
+        approved, proposal_type, value = self._network_proposal.vote_proposal(txHash, self.msg.sender,
+                                                                              voteType,
+                                                                              self._get_end_block_height_of_term(),
+                                                                              self._get_main_prep())
+
+        if approved:
+            if proposal_type == NetworkProposalType.TEXT:
+                self._set_text(**value)
+            elif proposal_type == NetworkProposalType.REVISION:
+                self._set_revision(**value)
+            elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
+                self._remove_malicious_score(**value)
+            elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
+                self._disqualify_prep(**value)
+            elif proposal_type == NetworkProposalType.STEP_PRICE:
+                self._set_step_price(**value)
+
+    @external(readonly=True)
+    def getProposal(self, txHash: bytes) -> dict:
+        """ Get Proposal info as dict
+
+        :param txHash: transaction hash to generate when registering proposal
+        :return: proposal information in dict
+        """
+        proposal_info = self._network_proposal.get_proposal(txHash, self._get_end_block_height_of_term())
+        return proposal_info
+
+    @external(readonly=True)
+    def getProposalList(self) -> dict:
+        """ Get all of proposals in list"""
+        return self._network_proposal.get_proposal_list(self._get_end_block_height_of_term())
+
+    def _check_main_prep(self, address: 'Address') -> bool:
+        """ Check if the address is main prep
+
+        :param address: address to be checked
+        :return: bool value to be checked if it is one of main preps or not
+        """
+        main_preps, _ = self.get_main_prep_info()
+        for prep in main_preps:
+            if prep.address == address:
+                return True
+        return False
+
+    def _get_end_block_height_of_term(self) -> int:
+        """ Get the end block height of the current term
+
+        :return: end block height of the term in integer
+        """
+        _, end_block_height_of_term = self.get_main_prep_info()
+        return end_block_height_of_term
+
+    def _get_main_prep(self) -> list:
+        main_preps, _ = self.get_main_prep_info()
+        return main_preps
