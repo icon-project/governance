@@ -148,7 +148,7 @@ class NetworkProposal:
             "contents": {
                 "description": proposal_info.description,
                 "type": hex(proposal_info.type),
-                "value": str(proposal_info.value)
+                "value": proposal_info.value
             }
         }
         return result
@@ -231,7 +231,7 @@ class ProposalInfo:
         self.proposer = proposer
         self.description = description
         self.type = type
-        self.value = value
+        self.value = value      # value dict has str value
         self.expired = expired
         self.status = status
         self.voter = voter
@@ -244,7 +244,6 @@ class ProposalInfo:
         proposal_info_in_dict = vars(self)
         proposal_info_in_dict["id"] = bytes.hex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = str(proposal_info_in_dict["proposer"])
-        proposal_info_in_dict["value"] = ProposalInfo._convert_value_to_json(proposal_info_in_dict["value"])
         return json_dumps(proposal_info_in_dict).encode()
 
     @staticmethod
@@ -257,33 +256,4 @@ class ProposalInfo:
         proposal_info_in_dict: dict = json_loads(buf.decode())
         proposal_info_in_dict["id"] = bytes.fromhex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = Address.from_string(proposal_info_in_dict["proposer"])
-        proposal_info_in_dict["value"] = ProposalInfo._convert_value_to_original(proposal_info_in_dict["value"])
         return ProposalInfo(**proposal_info_in_dict)
-
-    @staticmethod
-    def _convert_value_to_json(value_to_be_converted: dict) -> dict:
-        """ Convert value in dict to json for serialization
-
-        :param value_to_be_converted: value in dict to be converted
-        :return: None
-        """
-        for key, value in value_to_be_converted.items():
-            if isinstance(value, Address):
-                value_to_be_converted[key] = str(value)
-
-        return value_to_be_converted
-
-    @staticmethod
-    def _convert_value_to_original(converted_value: dict) -> dict:
-        """ Convert value in dict to original for deserialization
-
-        :param converted_value: converted value in dict
-        :return: None
-        """
-        for key, value in converted_value.items():
-            if key == "address" and isinstance(value, str):
-                converted_value[key] = Address.from_string(value)
-            elif (key == "code" or key == "type" or key == "value") and isinstance(value, str):
-                converted_value[key] = int(value, 16)
-
-        return converted_value

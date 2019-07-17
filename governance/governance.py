@@ -172,6 +172,10 @@ class Governance(IconSystemScoreBase):
     def VoteNetworkProposal(self, id: bytes, vote: int, voter: Address):
         pass
 
+    @eventlog(indexed=1)
+    def NetworkProposalApproved(self, id: bytes):
+        pass
+
     @property
     def import_white_list_cache(self) -> dict:
         return self._get_import_white_list()
@@ -873,7 +877,8 @@ class Governance(IconSystemScoreBase):
                 table[flag.name] = False
         return table
 
-    def _set_revision(self, code: int, name: str):
+    def _set_revision(self, code: str, name: str):
+        code = int(code, 16)
         prev_code = self._revision_code.get()
         if code < prev_code:
             revert(f"can't decrease code")
@@ -946,6 +951,9 @@ class Governance(IconSystemScoreBase):
         self.VoteNetworkProposal(id, vote, self.msg.sender)
 
         if approved:
+            self.NetworkProposalApproved(id)
+
+            # value dict has str key, value. convert str value to appropriate type to use
             if proposal_type == NetworkProposalType.TEXT:
                 return
             elif proposal_type == NetworkProposalType.REVISION:
