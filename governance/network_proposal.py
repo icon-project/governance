@@ -21,6 +21,13 @@ class NetworkProposalVote:
     AGREE = 1
 
 
+class ApproveCondition:
+    APPROVE_VOTE_COUNT = 14
+    APPROVE_DELEGATION_RATE = 0.66
+    DISAPPROVE_VOTE_COUNT = 7
+    DISAPPROVE_DELEGATION_RATE = 0.33
+
+
 class NetworkProposal:
     """ Network Proposal which implements related method, controls DB and make result formatted """
     _PROPOSAL_LIST = 'proposal_list'
@@ -30,63 +37,66 @@ class NetworkProposal:
         self._proposal_list = DictDB(self._PROPOSAL_LIST, db, value_type=bytes)
         self._proposal_list_keys = ArrayDB(self._PROPOSAL_LIST_KEYS, db, value_type=bytes)
 
-    def register_proposal(self, tx_hash: bytes, proposer: 'Address', expired: int,
+    def register_proposal(self, id: bytes, proposer: 'Address', expired: int,
                           description: str, type: int, value: dict) -> None:
         """ Put transaction hash and info of the proposal to db
 
-        :param tx_hash: transaction hash to register the proposal
+        :param id: transaction hash to register the proposal
         :param proposer: address of EOA who want to register the proposal
         :param expired: expire block height of the proposal
         :param description: description of the proposal
         :param type: type of the proposal
         :param value: specific value of the proposal
         """
-        self._proposal_list_keys.put(tx_hash)
+        self._proposal_list_keys.put(id)
         _STATUS = NetworkProposalStatus.VOTING
         _VOTER = {
             "agree": [],
             "disagree": []
         }
-        proposal_info = ProposalInfo(tx_hash, proposer, description, type, value, expired, _STATUS, _VOTER)
-        self._proposal_list[tx_hash] = proposal_info.to_bytes()
+        proposal_info = ProposalInfo(id, proposer, description, type, value, expired, _STATUS, _VOTER)
+        self._proposal_list[id] = proposal_info.to_bytes()
 
-    def cancel_proposal(self, tx_hash: bytes, proposer: 'Address') -> None:
+    def cancel_proposal(self, id: bytes, proposer: 'Address', current_block_height: int) -> None:
         """ Set status out of the proposal's info to NetworkProposalStatus.CANCELED
 
-        :param tx_hash: transaction hash to cancel the proposal
+        :param id: transaction hash to cancel the proposal
         :param proposer: address of EOA who want to cancel this proposal
+        :param current_block_height: current block height
         """
-        if not self._check_registered_proposal(tx_hash):
+        if not self._check_registered_proposal(id):
             revert("No registered proposal")
 
-        proposal_info = ProposalInfo.from_bytes(self._proposal_list[tx_hash])
+        proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
+
+        if proposal_info.expired < current_block_height:
+            revert("This proposal has already expired")
 
         if proposer != proposal_info.proposer:
             revert("No permission - only for proposer")
 
-        if proposal_info.status == NetworkProposalStatus.APPROVED:
-            revert("Can not be canceled - already approved")
+        if proposal_info.status != NetworkProposalStatus.VOTING:
+            revert("Can not be canceled - only voting proposal")
 
         proposal_info.status = NetworkProposalStatus.CANCELED
-        self._proposal_list[tx_hash] = proposal_info.to_bytes()
+        self._proposal_list[id] = proposal_info.to_bytes()
 
-    def vote_proposal(self, tx_hash: bytes, voter: 'Address', vote_type: int, current_block_height: int,
+    def vote_proposal(self, id: bytes, voter: 'Address', vote_type: int, current_block_height: int,
                       main_preps: list) -> (bool, int, dict):
         """ Vote for the proposal - agree or disagree
         
-        :param tx_hash: transaction hash to vote to the proposal
+        :param id: transaction hash to vote to the proposal
         :param voter: voter address
         :param vote_type: votes type - agree(NetworkProposalVote.AGREE, 1) or disagree(NetworkProposalVote.DISAGREE, 0)
         :param current_block_height: current block height
         :param main_preps: main prep list having Prep instance
         :return: bool - True means success for voting and False means failure for voting
         """
-        if not self._check_registered_proposal(tx_hash):
+        if not self._check_registered_proposal(id):
             revert("No registered proposal")
 
-        proposal_info = ProposalInfo.from_bytes(self._proposal_list[tx_hash])
+        proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-        # TODO check <= or <
         if proposal_info.expired < current_block_height:
             revert("This proposal has already expired")
 
@@ -110,23 +120,22 @@ class NetworkProposal:
                 else:
                     proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
-        self._proposal_list[tx_hash] = proposal_info.to_bytes()
+        self._proposal_list[id] = proposal_info.to_bytes()
 
         return approved, proposal_info.type, proposal_info.value
 
-    def get_proposal(self, tx_hash: bytes, current_block_height: int) -> dict:
-        """ Get proposal information by tx hash
+    def get_proposal(self, id: bytes, current_block_height: int) -> dict:
+        """ Get proposal information by ID
 
-        :param tx_hash: transaction hash to register the proposal
+        :param id: transaction hash to register the proposal
         :param current_block_height: current block height
         :return: the proposal info in result format in dict
         """
-        if not self._check_registered_proposal(tx_hash):
+        if not self._check_registered_proposal(id):
             revert("No registered proposal")
 
-        proposal_info = ProposalInfo.from_bytes(self._proposal_list[tx_hash])
+        proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-        # TODO check <= or <
         if proposal_info.expired < current_block_height and proposal_info.status == NetworkProposalStatus.VOTING:
             proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
@@ -134,6 +143,7 @@ class NetworkProposal:
             "proposer": proposal_info.proposer,
             "id": proposal_info.id,
             "status": hex(proposal_info.status),
+            "expiration": hex(proposal_info.expired),
             "voter": proposal_info.voter,
             "contents": {
                 "description": proposal_info.description,
@@ -150,17 +160,18 @@ class NetworkProposal:
         :return: the proposal info list in result format in dict
         """
         proposals = []
-        for tx_hash in self._proposal_list_keys:
-            proposal_info = ProposalInfo.from_bytes(self._proposal_list[tx_hash])
+        for id in self._proposal_list_keys:
+            proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-            # TODO check <= or <
             if proposal_info.expired < current_block_height and proposal_info.status == NetworkProposalStatus.VOTING:
                 proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
             proposal_info_in_dict = {
+                "id": proposal_info.id,
                 "description": proposal_info.description,
                 "type": hex(proposal_info.type),
-                "status": hex(proposal_info.status)
+                "status": hex(proposal_info.status),
+                "expiration": hex(proposal_info.expired)
             }
             proposals.append(proposal_info_in_dict)
 
@@ -169,13 +180,13 @@ class NetworkProposal:
         }
         return result
 
-    def _check_registered_proposal(self, tx_hash: str) -> bool:
-        """ Check if the proposal with tx hash have already registered
+    def _check_registered_proposal(self, id: bytes) -> bool:
+        """ Check if the proposal with ID have already registered
 
-        :param tx_hash: transaction hash to register the proposal
+        :param id: transaction hash to register the proposal
         :return: bool
         """
-        proposal_in_bytes = self._proposal_list[tx_hash]
+        proposal_in_bytes = self._proposal_list[id]
         return True if proposal_in_bytes else False
 
     @staticmethod
@@ -202,9 +213,11 @@ class NetworkProposal:
 
         try:
             if vote_type == NetworkProposalVote.AGREE:
-                return len(preps_to_vote) > 14 and delegated_of_preps_to_vote / total_delegated > 0.66
+                return len(preps_to_vote) > ApproveCondition.APPROVE_VOTE_COUNT \
+                       and delegated_of_preps_to_vote / total_delegated > ApproveCondition.APPROVE_DELEGATION_RATE
             else:
-                return len(preps_to_vote) > 7 and delegated_of_preps_to_vote / total_delegated > 0.33
+                return len(preps_to_vote) > ApproveCondition.DISAPPROVE_VOTE_COUNT \
+                       and delegated_of_preps_to_vote / total_delegated > ApproveCondition.DISAPPROVE_DELEGATION_RATE
         except ZeroDivisionError:
             return False
 
@@ -231,10 +244,11 @@ class ProposalInfo:
         proposal_info_in_dict = vars(self)
         proposal_info_in_dict["id"] = bytes.hex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = str(proposal_info_in_dict["proposer"])
-        self._convert_value_to_json(proposal_info_in_dict["value"])
+        proposal_info_in_dict["value"] = ProposalInfo._convert_value_to_json(proposal_info_in_dict["value"])
         return json_dumps(proposal_info_in_dict).encode()
 
-    def from_bytes(self, buf: bytes) -> 'ProposalInfo':
+    @staticmethod
+    def from_bytes(buf: bytes) -> 'ProposalInfo':
         """ Create ProposalInfo object from bytes
 
         :param buf: ProposalInfo in bytes
@@ -243,11 +257,11 @@ class ProposalInfo:
         proposal_info_in_dict: dict = json_loads(buf.decode())
         proposal_info_in_dict["id"] = bytes.fromhex(proposal_info_in_dict["id"])
         proposal_info_in_dict["proposer"] = Address.from_string(proposal_info_in_dict["proposer"])
-        self._convert_value_to_original(proposal_info_in_dict["value"])
+        proposal_info_in_dict["value"] = ProposalInfo._convert_value_to_original(proposal_info_in_dict["value"])
         return ProposalInfo(**proposal_info_in_dict)
 
     @staticmethod
-    def _convert_value_to_json(value_to_be_converted: dict):
+    def _convert_value_to_json(value_to_be_converted: dict) -> dict:
         """ Convert value in dict to json for serialization
 
         :param value_to_be_converted: value in dict to be converted
@@ -257,8 +271,10 @@ class ProposalInfo:
             if isinstance(value, Address):
                 value_to_be_converted[key] = str(value)
 
+        return value_to_be_converted
+
     @staticmethod
-    def _convert_value_to_original(converted_value: dict):
+    def _convert_value_to_original(converted_value: dict) -> dict:
         """ Convert value in dict to original for deserialization
 
         :param converted_value: converted value in dict
@@ -267,3 +283,7 @@ class ProposalInfo:
         for key, value in converted_value.items():
             if key == "address" and isinstance(value, str):
                 converted_value[key] = Address.from_string(value)
+            elif (key == "code" or key == "type" or key == "value") and isinstance(value, str):
+                converted_value[key] = int(value, 16)
+
+        return converted_value
