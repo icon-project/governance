@@ -165,11 +165,15 @@ class Governance(IconSystemScoreBase):
         pass
 
     @eventlog(indexed=1)
-    def CancelNetworkProposal(self, txHash: bytes):
+    def CancelNetworkProposal(self, id: bytes):
         pass
 
     @eventlog(indexed=1)
-    def VoteNetworkProposal(self, txHash: str, vote_type: int, voter: Address):
+    def VoteNetworkProposal(self, id: bytes, vote: int, voter: Address):
+        pass
+
+    @eventlog(indexed=1)
+    def NetworkProposalApproved(self, id: bytes):
         pass
 
     @property
@@ -873,7 +877,8 @@ class Governance(IconSystemScoreBase):
                 table[flag.name] = False
         return table
 
-    def _set_revision(self, code: int, name: str):
+    def _set_revision(self, code: str, name: str):
+        code = int(code, 16)
         prev_code = self._revision_code.get()
         if code < prev_code:
             revert(f"can't decrease code")
@@ -900,6 +905,9 @@ class Governance(IconSystemScoreBase):
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
 
+        if expire_block_height < self.block_height:
+            revert("Invalid main P-Rep term information")
+
         value_in_dict = json_loads(value.decode())
         self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, expire_block_height,
                                                  description, type, value_in_dict)
@@ -907,10 +915,10 @@ class Governance(IconSystemScoreBase):
         self.RegisterNetworkProposal(description, type, value, self.msg.sender)
 
     @external
-    def cancelProposal(self, txHash: bytes):
+    def cancelProposal(self, id: bytes):
         """ Cancel Proposal if it have not been approved
 
-        :txHash: transaction hash to generate when registering proposal
+        :param id: transaction hash to generate when registering proposal
         :return: None
         """
         main_preps, _ = self.get_main_prep_info()
@@ -918,16 +926,16 @@ class Governance(IconSystemScoreBase):
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
 
-        self._network_proposal.cancel_proposal(txHash, self.msg.sender)
+        self._network_proposal.cancel_proposal(id, self.msg.sender, self.block_height)
 
-        self.CancelNetworkProposal(txHash)
+        self.CancelNetworkProposal(id)
 
     @external
-    def voteProposal(self, txHash: bytes, voteType: int):
+    def voteProposal(self, id: bytes, vote: int):
         """ Vote for Proposal - agree or disagree
 
-        :txHash: transaction hash to generate when registering proposal
-        :voteType: agree(1) or disagree(0)
+        :param id: transaction hash to generate when registering proposal
+        :param vote: agree(1) or disagree(0)
         :return: None
         """
         main_preps, _ = self.get_main_prep_info()
@@ -935,14 +943,17 @@ class Governance(IconSystemScoreBase):
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
 
-        approved, proposal_type, value = self._network_proposal.vote_proposal(txHash, self.msg.sender,
-                                                                              voteType,
+        approved, proposal_type, value = self._network_proposal.vote_proposal(id, self.msg.sender,
+                                                                              vote,
                                                                               self.block_height,
                                                                               main_preps)
 
-        self.VoteNetworkProposal(txHash, voteType, self.msg.sender)
+        self.VoteNetworkProposal(id, vote, self.msg.sender)
 
         if approved:
+            self.NetworkProposalApproved(id)
+
+            # value dict has str key, value. convert str value to appropriate type to use
             if proposal_type == NetworkProposalType.TEXT:
                 return
             elif proposal_type == NetworkProposalType.REVISION:
@@ -955,13 +966,13 @@ class Governance(IconSystemScoreBase):
                 self._set_step_price(**value)
 
     @external(readonly=True)
-    def getProposal(self, txHash: bytes) -> dict:
+    def getProposal(self, id: bytes) -> dict:
         """ Get Proposal info as dict
 
-        :param txHash: transaction hash to generate when registering proposal
+        :param id: transaction hash to generate when registering proposal
         :return: proposal information in dict
         """
-        proposal_info = self._network_proposal.get_proposal(txHash, self.block_height)
+        proposal_info = self._network_proposal.get_proposal(id, self.block_height)
         return proposal_info
 
     @external(readonly=True)
