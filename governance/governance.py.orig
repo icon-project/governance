@@ -918,7 +918,7 @@ class Governance(IconSystemScoreBase):
         :param value: encoded value
         :return: None
         """
-        main_preps, expire_block_height = get_main_prep_info()
+        main_preps, expire_block_height = self.get_main_prep_info()
 
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
@@ -927,7 +927,7 @@ class Governance(IconSystemScoreBase):
             revert("Invalid main P-Rep term information")
 
         value_in_dict = json_loads(value.decode())
-        self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
+        self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, expire_block_height,
                                                  description, type, value_in_dict)
 
         self.RegisterNetworkProposal(description, type, value, self.msg.sender)
@@ -939,7 +939,7 @@ class Governance(IconSystemScoreBase):
         :param id: transaction hash to generate when registering proposal
         :return: None
         """
-        main_preps, _ = get_main_prep_info()
+        main_preps, _ = self.get_main_prep_info()
 
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
@@ -956,7 +956,7 @@ class Governance(IconSystemScoreBase):
         :param vote: agree(1) or disagree(0)
         :return: None
         """
-        main_preps, _ = get_main_prep_info()
+        main_preps, _ = self.get_main_prep_info()
 
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
@@ -1009,6 +1009,8 @@ class Governance(IconSystemScoreBase):
             if prep.address == address:
                 return True
         return False
+        converted_address = Address.from_string(address)
+        self.unregister_prep(converted_address)
 
     def _malicious_score(self, address: str, type: str):
         converted_address = Address.from_string(address)
@@ -1018,7 +1020,7 @@ class Governance(IconSystemScoreBase):
         elif converted_type == MaliciousScoreType.UNFREEZE:
             self._removeFromScoreBlackList(converted_address)
 
-    def _disqualify_prep(self):
+    def _disqualify_prep(self, address: str):
         pass
 
     def _set_step_price(self):
