@@ -16,7 +16,8 @@
 
 from iconservice import *
 
-from .network_proposal import NetworkProposal, NetworkProposalType
+from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
+
 
 TAG = 'Governance'
 DEBUG = False
@@ -158,6 +159,14 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=0)
     def RevisionChanged(self, revisionCode: int, revisionName: str):
+        pass
+
+    @eventlog(indexed=1)
+    def AddMaliciosScore(self, address: Address):
+        pass
+
+    @eventlog(indexed=1)
+    def RemoveMaliciosScore(self, address: Address):
         pass
 
     @eventlog(indexed=2)
@@ -537,37 +546,46 @@ class Governance(IconSystemScoreBase):
         for deployer in self._deployer_list:
             Logger.debug(f' --- {deployer}', TAG)
 
-    @external
-    def addToScoreBlackList(self, address: Address):
+    def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
+
         # check message sender, only owner can add new blacklist
         if self.msg.sender != self.owner:
             revert('Invalid sender: not owner')
+
         if self.address == address:
             revert("can't add myself")
+
         if address not in self._score_black_list:
             self._score_black_list.put(address)
+            self.AddMaliciosScore(address)
         else:
             revert('Invalid address: already SCORE blacklist')
+
         if DEBUG is True:
             self._print_black_list('addScoreToBlackList')
 
-    @external
-    def removeFromScoreBlackList(self, address: Address):
+    def _removeFromScoreBlackList(self, address: Address):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
+
         # check message sender, only owner can remove from blacklist
         if self.msg.sender != self.owner:
             revert('Invalid sender: not owner')
+
         if address not in self._score_black_list:
             revert('Invalid address: not in list')
+
         # get the topmost value
         top = self._score_black_list.pop()
         if top != address:
             for i in range(len(self._score_black_list)):
                 if self._score_black_list[i] == address:
                     self._score_black_list[i] = top
+
+        self.RemoveMaliciosScore(address)
+
         if DEBUG is True:
             self._print_black_list('removeScoreFromBlackList')
 
@@ -992,8 +1010,13 @@ class Governance(IconSystemScoreBase):
                 return True
         return False
 
-    def _malicious_score(self):
-        pass
+    def _malicious_score(self, address: str, type: str):
+        converted_address = Address.from_string(address)
+        converted_type = int(type, 16)
+        if converted_type == MaliciousScoreType.FREEZE:
+            self._addToScoreBlackList(converted_address)
+        elif converted_type == MaliciousScoreType.UNFREEZE:
+            self._removeFromScoreBlackList(converted_address)
 
     def _disqualify_prep(self):
         pass

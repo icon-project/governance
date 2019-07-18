@@ -28,6 +28,11 @@ class ApproveCondition:
     DISAPPROVE_DELEGATION_RATE = 0.33
 
 
+class MaliciousScoreType:
+    FREEZE = 0
+    UNFREEZE = 1
+
+
 class NetworkProposal:
     """ Network Proposal which implements related method, controls DB and make result formatted """
     _PROPOSAL_LIST = 'proposal_list'
