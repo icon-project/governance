@@ -300,15 +300,15 @@ class NetworkProposal:
 class ProposalInfo:
     """ ProposalInfo Class including proposal information"""
 
-    def __init__(self, id: bytes, proposer: 'Address', description: str, type: int, value: dict, start: int,
-                 expired: int, status: int, voter: dict):
+    def __init__(self, id: bytes, proposer: 'Address', description: str, type: int, value: dict,
+                 start_block_height: int, end_block_height: int, status: int, voter: dict):
         self.id = id
         self.proposer = proposer
         self.description = description
         self.type = type
         self.value = value  # value dict has str value
-        self.start_block_height = start
-        self.end_block_height = expired
+        self.start_block_height = start_block_height
+        self.end_block_height = end_block_height
         self.status = status
         self.voter = voter
 

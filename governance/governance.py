@@ -161,27 +161,31 @@ class Governance(IconSystemScoreBase):
     def RevisionChanged(self, revisionCode: int, revisionName: str):
         pass
 
-    @eventlog(indexed=1)
+    @eventlog(indexed=0)
     def AddMaliciosScore(self, address: Address):
         pass
 
-    @eventlog(indexed=1)
+    @eventlog(indexed=0)
     def RemoveMaliciosScore(self, address: Address):
         pass
 
-    @eventlog(indexed=2)
+    @eventlog(indexed=0)
+    def DisqualifyPRep(self, address: Address):
+        pass
+
+    @eventlog(indexed=0)
     def RegisterNetworkProposal(self, description: str, type: int, value: bytes, proposer: Address):
         pass
 
-    @eventlog(indexed=1)
+    @eventlog(indexed=0)
     def CancelNetworkProposal(self, id: bytes):
         pass
 
-    @eventlog(indexed=1)
+    @eventlog(indexed=0)
     def VoteNetworkProposal(self, id: bytes, vote: int, voter: Address):
         pass
 
-    @eventlog(indexed=1)
+    @eventlog(indexed=0)
     def NetworkProposalApproved(self, id: bytes):
         pass
 
@@ -1009,8 +1013,11 @@ class Governance(IconSystemScoreBase):
         elif converted_type == MaliciousScoreType.UNFREEZE:
             self._removeFromScoreBlackList(converted_address)
 
-    def _disqualify_prep(self):
-        pass
+    def _disqualify_prep(self, address: str):
+        address = Address.from_string(address)
+
+        self.unregister_prep(address)
+        self.DisqualifyPRep(address)
 
     def _set_step_price(self, value: str):
         step_price = int(value, 16)
