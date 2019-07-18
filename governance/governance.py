@@ -389,15 +389,6 @@ class Governance(IconSystemScoreBase):
         return self._step_price.get()
 
     @external
-    def setStepPrice(self, stepPrice: int):
-        # only owner can set new step price
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-        if stepPrice > 0:
-            self._step_price.set(stepPrice)
-            self.StepPriceChanged(stepPrice)
-
-    @external
     def acceptScore(self, txHash: bytes):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
@@ -1021,5 +1012,8 @@ class Governance(IconSystemScoreBase):
     def _disqualify_prep(self):
         pass
 
-    def _set_step_price(self):
-        pass
+    def _set_step_price(self, value: str):
+        step_price = int(value, 16)
+        if step_price > 0:
+            self._step_price.set(step_price)
+            self.StepPriceChanged(step_price)
