@@ -29,8 +29,10 @@ class ApproveCondition:
 
 
 class MaliciousScoreType:
-    FREEZE = 0
+    MIN = 0
+    FREEZE = MIN
     UNFREEZE = 1
+    MAX = UNFREEZE
 
 
 class NetworkProposal:
@@ -41,25 +43,36 @@ class NetworkProposal:
     def __init__(self, db: IconScoreDatabase) -> None:
         self._proposal_list = DictDB(self._PROPOSAL_LIST, db, value_type=bytes)
         self._proposal_list_keys = ArrayDB(self._PROPOSAL_LIST_KEYS, db, value_type=bytes)
+        self._validate_func: list = [
+            self._validate_text_proposal,
+            self._validate_revision_proposal,
+            self._validate_malicious_score_proposal,
+            self._validate_prep_disqualification_proposal,
+            self._validate_step_price_proposal
+        ]
 
-    def register_proposal(self, id: bytes, proposer: 'Address', expired: int,
+    def register_proposal(self, id: bytes, proposer: 'Address', start: int, expired: int,
                           description: str, type: int, value: dict) -> None:
         """ Put transaction hash and info of the proposal to db
 
         :param id: transaction hash to register the proposal
         :param proposer: address of EOA who want to register the proposal
+        :param start: start block height of the proposal
         :param expired: expire block height of the proposal
         :param description: description of the proposal
         :param type: type of the proposal
         :param value: specific value of the proposal
         """
+        if not self._validate_proposal(type, value):
+            revert("Invalid parameter")
+
         self._proposal_list_keys.put(id)
         _STATUS = NetworkProposalStatus.VOTING
         _VOTER = {
             "agree": [],
             "disagree": []
         }
-        proposal_info = ProposalInfo(id, proposer, description, type, value, expired, _STATUS, _VOTER)
+        proposal_info = ProposalInfo(id, proposer, description, type, value, start, expired, _STATUS, _VOTER)
         self._proposal_list[id] = proposal_info.to_bytes()
 
     def cancel_proposal(self, id: bytes, proposer: 'Address', current_block_height: int) -> None:
@@ -74,7 +87,7 @@ class NetworkProposal:
 
         proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-        if proposal_info.expired < current_block_height:
+        if proposal_info.end_block_height < current_block_height:
             revert("This proposal has already expired")
 
         if proposer != proposal_info.proposer:
@@ -102,7 +115,7 @@ class NetworkProposal:
 
         proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-        if proposal_info.expired < current_block_height:
+        if proposal_info.end_block_height < current_block_height:
             revert("This proposal has already expired")
 
         if proposal_info.status == NetworkProposalStatus.CANCELED:
@@ -141,14 +154,16 @@ class NetworkProposal:
 
         proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-        if proposal_info.expired < current_block_height and proposal_info.status == NetworkProposalStatus.VOTING:
-            proposal_info.status = NetworkProposalStatus.DISAPPROVED
+        if proposal_info.end_block_height < current_block_height:
+            if proposal_info.status == NetworkProposalStatus.VOTING:
+                proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
         result = {
             "proposer": proposal_info.proposer,
             "id": proposal_info.id,
             "status": hex(proposal_info.status),
-            "expiration": hex(proposal_info.expired),
+            "startBlockHeight": hex(proposal_info.start_block_height),
+            "endBlockHeight": hex(proposal_info.end_block_height),
             "voter": proposal_info.voter,
             "contents": {
                 "description": proposal_info.description,
@@ -156,6 +171,7 @@ class NetworkProposal:
                 "value": proposal_info.value
             }
         }
+
         return result
 
     def get_proposal_list(self, current_block_height: int) -> dict:
@@ -168,15 +184,17 @@ class NetworkProposal:
         for id in self._proposal_list_keys:
             proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
 
-            if proposal_info.expired < current_block_height and proposal_info.status == NetworkProposalStatus.VOTING:
-                proposal_info.status = NetworkProposalStatus.DISAPPROVED
+            if proposal_info.end_block_height < current_block_height:
+                if proposal_info.status == NetworkProposalStatus.VOTING:
+                    proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
             proposal_info_in_dict = {
                 "id": proposal_info.id,
                 "description": proposal_info.description,
                 "type": hex(proposal_info.type),
                 "status": hex(proposal_info.status),
-                "expiration": hex(proposal_info.expired)
+                "startBlockHeight": hex(proposal_info.start_block_height),
+                "endBlockHeight": hex(proposal_info.end_block_height)
             }
             proposals.append(proposal_info_in_dict)
 
@@ -184,6 +202,58 @@ class NetworkProposal:
             "proposals": proposals
         }
         return result
+
+    def _validate_proposal(self, proposal_type: int, value: dict):
+        result = False
+        try:
+            validator = self._validate_func[proposal_type]
+            result = validator(value)
+        finally:
+            return result
+
+    @staticmethod
+    def _validate_text_proposal(value: dict) -> bool:
+        text = value['text']
+        return isinstance(text, str)
+
+    @staticmethod
+    def _validate_revision_proposal(value: dict) -> bool:
+        code = int(value['code'], 16)
+        name = value['name']
+
+        return isinstance(code, int) and isinstance(name, str)
+
+    @staticmethod
+    def _validate_malicious_score_proposal(value: dict) -> bool:
+        address = Address.from_string(value['address'])
+        type_ = int(value['type'], 16)
+
+        return isinstance(address, Address) and address.is_contract \
+               and MaliciousScoreType.MIN <= type_ <= MaliciousScoreType.MAX
+
+    @staticmethod
+    def _validate_prep_disqualification_proposal(value: dict) -> bool:
+        address = Address.from_string(value['address'])
+
+        main_preps, _ = get_main_prep_info()
+        if main_preps is None:
+            return False
+
+        sub_preps, _ = get_sub_prep_info()
+        if sub_preps is None:
+            return False
+
+        for prep in main_preps + sub_preps:
+            if prep.address == address:
+                return True
+
+        return False
+
+    @staticmethod
+    def _validate_step_price_proposal(value: dict) -> bool:
+        value = int(value['value'], 16)
+
+        return isinstance(value, int)
 
     def _check_registered_proposal(self, id: bytes) -> bool:
         """ Check if the proposal with ID have already registered
@@ -230,14 +300,15 @@ class NetworkProposal:
 class ProposalInfo:
     """ ProposalInfo Class including proposal information"""
 
-    def __init__(self, id: bytes, proposer: 'Address', description: str, type: int, value: dict, expired: int,
-                 status: int, voter: dict):
+    def __init__(self, id: bytes, proposer: 'Address', description: str, type: int, value: dict, start: int,
+                 expired: int, status: int, voter: dict):
         self.id = id
         self.proposer = proposer
         self.description = description
         self.type = type
-        self.value = value      # value dict has str value
-        self.expired = expired
+        self.value = value  # value dict has str value
+        self.start_block_height = start
+        self.end_block_height = expired
         self.status = status
         self.voter = voter
 
