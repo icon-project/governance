@@ -20,7 +20,7 @@ The most commonly used Value types are as follows.
 | <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a> | "cx" + 40 digits HEX string | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32 |
 | <a id="T_HASH">T\_HASH</a> | "0x" + 64 digits HEX string | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
 | <a id="T_INT">T\_INT</a> | "0x" + lowercase HEX string | 0xa |
-| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}" |
+| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}" |
 | <a id="T_BIN_DATA">T\_BIN\_DATA</a> | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2 |
 | <a id="T_SIG">T\_SIG</a> | base64 encoded string | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
 
@@ -34,14 +34,14 @@ dotted_names: dotted_name ("," dotted_name) * <br>
 dotted_name: "'"NAME ("." NAME)*"'" <br>
 NAME: Not an empty string
 
-### Exmaples
+### Examples
 | python import | import statement |
 |:------------- |:-----------------|
 |import json | { 'json' : [] } |
 |from json import * |{ 'json' : [] } |
 |from os import path | { 'os' : ['path'] } |
-|from base.exception import ExceptionCode, RevertException | { 'base.exception' : ['ExceptionCode', 'RevertException'] } |
-|import json <br> from os import path <br> from base.exception import ExceptionCode, RevertException <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode', 'RevertException'] } |
+|from base.exception import ExceptionCode | { 'base.exception' : ['ExceptionCode'] } |
+|import json <br> from os import path <br> from base.exception import ExceptionCode <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode'] } |
 
 # Methods List
 
@@ -89,14 +89,14 @@ Query method does not change state. Read-only.
 ## getScoreStatus
 
 * Queries the current status of the given SCORE.
-* This tells the status of the SCORE of given address.
-* `current` is the installed and running SCORE instance, while `next` is the SCORE code that has been requested to deploy or update, but not installed yet.
+* `current` indicates the currently active SCORE instance, while `next` is the SCORE code that has been requested to install or update, but not activated yet.
+* [Fee 2.0] Checks the deposit information of the given SCORE.
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address to query |
+| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | a SCORE address to check the status |
 
 ### Examples
 
@@ -105,10 +105,9 @@ Query method does not change state. Read-only.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -127,7 +126,7 @@ Query method does not change state. Read-only.
 // Response - install requested: under auditing
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
         "next": {
             "status": "pending",
@@ -141,7 +140,7 @@ Query method does not change state. Read-only.
 // Response - audit completed: accepted
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
         "current": {
             "status": "active",
@@ -156,7 +155,7 @@ Query method does not change state. Read-only.
 // Response - audit completed: rejected
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
         "next": {
             "status": "rejected",
@@ -173,10 +172,10 @@ Query method does not change state. Read-only.
 // Response - update requested: under auditing
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
         "current": {
-            "status": "active", // or "inactive"
+            "status": "active",
             "deployTxHash": "0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b207",
             "auditTxHash": "0x644dd57fbb65b49a49bcaf5e7685e01d53dc321f1cfb7dbbf8f4306265745292"
         },
@@ -192,10 +191,10 @@ Query method does not change state. Read-only.
 // Response - update requested, audit completed: rejected
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
         "current": {
-            "status": "active", // or "inactive"
+            "status": "active",
             "deployTxHash": "0xe0f6dc6607aa9b5550cd1e6d57549f67fe9718654cde15258922d0f88ff58b27",
             "auditTxHash": "0x644dd57fbb65b49a49bcaf5e7685e01d53dc321f1cfb7dbbf8f4306265745292"
         },
@@ -208,14 +207,47 @@ Query method does not change state. Read-only.
 }
 ```
 
+#### Response: (Fee 2.0) SCORE deposit status
+
+`depositInfo` field will be shown when there is a deposit in the SCORE.
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 100,
+    "result": {
+        "current": {
+            "status": "active",
+            "deployTxHash": "0x19793f41b8e64fc31190c6a70a103103da1f4bc81bc829fa72c852a5e388fe8c"
+        },
+        "depositInfo": {
+            "scoreAddress": "cx216e1468b780ac1b54c328d19ea23a35a6899e55",
+            "deposits": [
+                {
+                    "id": "0x64b118d4a3c2b3b93362a0f3ea06e5519de42449523465265b85509041e69011",
+                    "sender": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
+                    "depositAmount": "0x10f0cf064dd59200000",
+                    "depositUsed": "0x0",
+                    "created": "0x16",
+                    "expires": "0x13c696",
+                    "virtualStepIssued": "0x9502f9000",
+                    "virtualStepUsed": "0x329a6"
+                }
+            ],
+            "availableVirtualStep": "0x9502c665a",
+            "availableDeposit": "0xf3f20b8dfa69d00000"
+        }
+    }
+}
+```
+
 #### Response: error case
 
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "error": {
-        "code": -32062,
+        "code": -32032,
         "message": "SCORE not found"
     }
 }
@@ -240,10 +272,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -258,8 +289,8 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "0xe8d4a51000" // 1000000000000
+    "id": 100,
+    "result": "0x2540be400"
 }
 ```
 
@@ -282,10 +313,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -300,19 +330,21 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": {
-        "default": "0xfa0",
-        "contractCall": "0x5dc",
-        "contractCreate": "0x4e20",
-        "contractUpdate": "0x1f40",
-        "contractDestruct": "-0x1b58",
-        "contractSet": "0x3e8",
-        "set": "0x14",
-        "replace": "0x5",
-        "delete": "-0xf",
-        "input": "0x14",
-        "eventLog": "0xa"
+        "default": "0x186a0",
+        "contractCall": "0x61a8",
+        "contractCreate": "0x3b9aca00",
+        "contractUpdate": "0x5f5e1000",
+        "contractDestruct": "-0x11170",
+        "contractSet": "0x7530",
+        "get": "0x0",
+        "set": "0x140",
+        "replace": "0x50",
+        "delete": "-0xf0",
+        "input": "0xc8",
+        "eventLog": "0x64",
+        "apiCall": "0x2710"
     }
 }
 ```
@@ -338,10 +370,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -359,8 +390,8 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "0x4000000"
+    "id": 100,
+    "result": "0x9502f900"
 }
 ```
 
@@ -385,10 +416,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -406,7 +436,7 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": "0x1"
 }
 ```
@@ -432,10 +462,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -453,7 +482,7 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "result": "0x1"
 }
 ```
@@ -475,10 +504,9 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
@@ -493,8 +521,8 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "0.0.0"
+    "id": 100,
+    "result": "0.0.7"
 }
 ```
 
@@ -519,16 +547,15 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
             "method": "isInImportWhiteList",
             "params": {
-                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}"
             }
         }
     }
@@ -540,8 +567,8 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "0x1"
+    "id": 100,
+    "result": "0x0"
 }
 ```
 
@@ -551,8 +578,7 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+None
 
 ### Examples
 
@@ -561,15 +587,13 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
-            "method": "getServiceConfig",
-            "params": {}
+            "method": "getServiceConfig"
         }
     }
 }
@@ -580,8 +604,13 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "{'fee': '0x1', 'audit': '0x0', 'deployerWhiteList': '0x1', 'scorePackageValidator': '0x0'}"
+    "id": 100,
+    "result": {
+        "FEE": "0x1",
+        "AUDIT": "0x1",
+        "DEPLOYER_WHITE_LIST": "0x0",
+        "SCORE_PACKAGE_VALIDATOR": "0x1"
+    }
 }
 ```
 
@@ -591,8 +620,7 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+None
 
 ### Examples
 
@@ -601,15 +629,13 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_call",
     "params": {
-        "from": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32", // optional
         "to": "cx0000000000000000000000000000000000000001",
         "dataType": "call",
         "data": {
-            "method": "getRevision",
-            "params": {}
+            "method": "getRevision"
         }
     }
 }
@@ -620,8 +646,11 @@ None
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
-    "result": "{'code': '1', 'name': '1.1.0'}"
+    "id": 100,
+    "result": {
+        "code": "0x4",
+        "name": "1.3.0"
+    }
 }
 ```
 
@@ -649,13 +678,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
         "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -689,13 +718,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
         "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -730,13 +759,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -770,13 +799,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -809,13 +838,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -823,7 +852,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "setStepPrice",
             "params": {
-                "stepPrice": "0xe8d4a51000" // 1000000000000
+                "stepPrice": "0x2540be400"
             }
         }
     }
@@ -849,13 +878,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -863,8 +892,8 @@ Invoke method can initiate state transition.
         "data": {
             "method": "setStepCost",
             "params": {
-                "stepType": "contractDestruct",
-                "cost": "-0x1b58" // -7000
+                "stepType": "apiCall",
+                "cost": "0x2710"
             }
         }
     }
@@ -890,13 +919,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -905,7 +934,7 @@ Invoke method can initiate state transition.
             "method": "setMaxStepLimit",
             "params": {
                 "contextType": "invoke",
-                "value": "0x883311220099"
+                "value": "0x9502f900"
             }
         }
     }
@@ -931,13 +960,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -971,13 +1000,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -994,7 +1023,7 @@ Invoke method can initiate state transition.
 
 ## addToScoreBlackList
 
-* Adds a new SCORE address to the black list that caused fatal problems.
+* Adds a new SCORE address to the black list, which is causing fatal problems in the network.
 * SCOREs in the block list will not be invoked afterward. 
 * Only the owner of the Governance SCORE can call this function.
 
@@ -1011,13 +1040,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1050,13 +1079,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1089,13 +1118,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1103,7 +1132,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "addImportWhiteList",
             "params": {
-                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}"
             }
         }
     }
@@ -1128,13 +1157,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1142,7 +1171,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "removeImportWhiteList",
             "params": {
-                "importStmt": "{'json': [],'os': ['path'],'base.exception': ['ExceptionCode','RevertException']}"
+                "importStmt": "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}"
             }
         }
     }
@@ -1151,17 +1180,17 @@ Invoke method can initiate state transition.
 
 ## updateServiceConfig
 
-* update service config.
-* this value is implemented using BitFlag
+* Updates the service config.
+* This value is implemented using BitFlag
 * Only the owner of the Governance SCORE can call this function.
 
 ### IconServiceConfig
 | Key | BitFlag Value | Description |
 |----|----|----|
-| fee | 1 | Enable Fee |
-| audit | 2 | Enalble Audit |
-| deployerWhiteList | 4 | Enable DeployWhiteList |
-| scorePackageValidator | 8 | Enable SCORE Package Validator |
+| FEE | 1 | Enable Fee |
+| AUDIT | 2 | Enable Audit |
+| DEPLOYER\_WHITE\_LIST | 4 | Enable DeployerWhiteList |
+| SCORE\_PACKAGE\_VALIDATOR | 8 | Enable SCORE Package Validator |
 
 ### Parameters
 
@@ -1170,21 +1199,21 @@ Invoke method can initiate state transition.
 | serviceFlag | [T\_INT](#T_INT) | flag for update service config|
 
 ### Examples
-* set value 3 if you want to activate service about Fee and Audit
-* set value 8 if you want to activate service about only SCORE Package Validator
+* Set value 3 if you want to activate service about Fee and Audit
+* Set value 8 if you want to activate service about only SCORE Package Validator
 
 #### Request
 
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1192,7 +1221,7 @@ Invoke method can initiate state transition.
         "data": {
             "method": "updateServiceConfig",
             "params": {
-                "servoceFlag": "0x1"
+                "serviceFlag": "0x1"
             }
         }
     }
@@ -1201,8 +1230,8 @@ Invoke method can initiate state transition.
 
 ## setRevision
 
-* set revision and debug version.
-* have to increasement
+* Sets the revision number and name.
+* The revision number should be increased.
 * Only the owner of the Governance SCORE can call this function.
 
 ### Parameters
@@ -1219,13 +1248,13 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 1234,
+    "id": 100,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11", // owner address
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x12345",
+        "stepLimit": "0x30000",
         "timestamp": "0x563a6cf330136",
         "nonce": "0x1",
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
@@ -1233,8 +1262,8 @@ Invoke method can initiate state transition.
         "data": {
             "method": "setRevision",
             "params": {
-                "code": "0x1",
-                "name": "1.1.0"
+                "code": "0x4",
+                "name": "1.2.3"
             }
         }
     }
