@@ -281,9 +281,10 @@ class NetworkProposal:
         total_delegated = 0
         delegated_of_preps_to_vote = 0
         preps_to_vote: list = proposal_info.voter["agree" if vote_type == NetworkProposalVote.AGREE else "disagree"]
+
         for prep in main_preps:
             total_delegated += prep.delegated
-            if prep.address in preps_to_vote:
+            if str(prep.address) in preps_to_vote:
                 delegated_of_preps_to_vote += prep.delegated
 
         try:
