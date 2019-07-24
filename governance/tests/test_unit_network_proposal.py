@@ -24,6 +24,16 @@ PATCHER_CHECK_VOTE_RESULT = patch('governance.network_proposal.NetworkProposal._
 PATCHER_CHECK_REGISTERED_PROPOSAL = patch('governance.network_proposal.NetworkProposal._check_registered_proposal',
                                           return_value=False)
 PATCHER_VALIDATE_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_proposal', return_value=True)
+PATCHER_VALIDATE_TEXT_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_text_proposal',
+                                       return_value=True)
+PATCHER_VALIDATE_REVISION_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_revision_proposal',
+                                           return_value=True)
+PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL = patch(
+    'governance.network_proposal.NetworkProposal._validate_malicious_score_proposal', return_value=True)
+PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL = patch(
+    'governance.network_proposal.NetworkProposal._validate_prep_disqualification_proposal', return_value=True)
+PATCHER_VALIDATE_STEP_PRICE_PROPOSAL = patch(
+    'governance.network_proposal.NetworkProposal._validate_step_price_proposal', return_value=True)
 
 
 def create_tx_hash(data: bytes = None) -> bytes:
@@ -94,7 +104,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
         expected_value = {
             "id": proposal_info.id,
             "proposer": str(proposal_info.proposer),
-            "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
+            "description": proposal_info.description,
             "type": proposal_info.type,
             "value": proposal_info.value,
             "start_block_height": proposal_info.start_block_height,
@@ -105,34 +115,35 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.assertEqual(proposal_info_in_bytes, dumps(expected_value).encode())
         self.assertEqual(proposal_info_in_bytes, proposal_info.from_bytes(proposal_info_in_bytes).to_bytes())
 
-    @patch('governance.network_proposal.NetworkProposal._validate_step_price_proposal', return_value=True)
-    @patch('governance.network_proposal.NetworkProposal._validate_prep_disqualification_proposal', return_value=True)
-    @patch('governance.network_proposal.NetworkProposal._validate_malicious_score_proposal', return_value=True)
-    @patch('governance.network_proposal.NetworkProposal._validate_revision_proposal', return_value=True)
-    @patch('governance.network_proposal.NetworkProposal._validate_text_proposal', return_value=True)
-    def test_validate_proposal(self, _validate_text_proposal, _validate_revision_proposal,
-                               _validate_malicious_score_proposal, _validate_prep_disqualification_proposal,
-                               _validate_step_price_proposal):
+    @patch_several(PATCHER_VALIDATE_TEXT_PROPOSAL, PATCHER_VALIDATE_REVISION_PROPOSAL,
+                   PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
+                   PATCHER_VALIDATE_STEP_PRICE_PROPOSAL)
+    def test_validate_proposal(self):
         value_of_type_0 = {"text": "text"}
         value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
         value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
         value_of_type_3 = {"address": str(create_address())}
         value_of_type_4 = {"value": hex(0)}
 
-        return_value = _validate_text_proposal(0, value_of_type_0)
-        assert _validate_text_proposal.called and return_value
+        self.network_proposal._validate_func = [self.network_proposal._validate_text_proposal,
+                                                self.network_proposal._validate_revision_proposal,
+                                                self.network_proposal._validate_malicious_score_proposal,
+                                                self.network_proposal._validate_prep_disqualification_proposal,
+                                                self.network_proposal._validate_step_price_proposal]
+        return_value = self.network_proposal._validate_proposal(0, value_of_type_0)
+        assert self.network_proposal._validate_text_proposal.called and return_value
 
-        return_value = _validate_text_proposal(1, value_of_type_1)
-        assert _validate_text_proposal.called and return_value
+        return_value = self.network_proposal._validate_proposal(1, value_of_type_1)
+        assert self.network_proposal._validate_revision_proposal.called and return_value
 
-        return_value = _validate_text_proposal(2, value_of_type_2)
-        assert _validate_text_proposal.called and return_value
+        return_value = self.network_proposal._validate_proposal(2, value_of_type_2)
+        assert self.network_proposal._validate_malicious_score_proposal.called and return_value
 
-        return_value = _validate_text_proposal(3, value_of_type_3)
-        assert _validate_text_proposal.called and return_value
+        return_value = self.network_proposal._validate_proposal(3, value_of_type_3)
+        assert self.network_proposal._validate_prep_disqualification_proposal.called and return_value
 
-        return_value = _validate_text_proposal(4, value_of_type_4)
-        assert _validate_text_proposal.called and return_value
+        return_value = self.network_proposal._validate_proposal(4, value_of_type_4)
+        assert self.network_proposal._validate_step_price_proposal.called and return_value
 
     def test_validate_text_proposal(self):
         value_of_type_0 = {"text": "text"}
@@ -199,13 +210,13 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_get_proposal(self):
-        current_block_height = 11
         voter = {
             "agree": [str(create_address()), str(create_address())],
             "disagree": [str(create_address())]
         }
         proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
             NetworkProposalStatus.VOTING, voter)
+        current_block_height = proposal_info.end_block_height + 1
 
         expected_value = {
             "proposer": proposal_info.proposer,
@@ -250,7 +261,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             expected_value["status"] = hex(NetworkProposalStatus.CANCELED)
             self.assertEqual(result, expected_value)
 
-        current_block_height = 5
+        current_block_height = proposal_info.end_block_height - 1
         proposal_info.status = NetworkProposalStatus.VOTING
         # case(5): during prep period (end block height >= current block height), Network proposal status == VOTING
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
@@ -302,7 +313,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             }
             expected_proposal_list["proposals"].append(proposal_info_in_dict)
 
-        current_block_height = 5
+        current_block_height = proposal_info.end_block_height - 1
         result = self.network_proposal.get_proposal_list(current_block_height)
         self.assertEqual(expected_proposal_list, result)
 
@@ -330,7 +341,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             }
             expected_proposal_list["proposals"].append(proposal_info_in_dict)
 
-            current_block_height = 11
+            current_block_height = proposal_info.end_block_height + 1
             result = self.network_proposal.get_proposal_list(current_block_height)
             self.assertEqual(expected_proposal_list, result)
 
@@ -368,13 +379,13 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_cancel_proposal(self):
-        current_block_height = 5
         voter = {
             "agree": [str(create_address()), str(create_address())],
             "disagree": [str(create_address())]
         }
         proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
             NetworkProposalStatus.VOTING, voter)
+        current_block_height = proposal_info.end_block_height - 1
 
         # case(1): raise revert when not check registered proposal
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
@@ -382,7 +393,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    proposal_info.id, proposal_info.proposer, current_block_height)
 
         # case(2): raise revert when end block height < current block height
-        current_block_height = 11
+        current_block_height = proposal_info.end_block_height + 1
         self.network_proposal._check_registered_proposal.return_value = True
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
             self.assertRaisesRegex(IconScoreException, "This proposal has already expired",
@@ -390,7 +401,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    proposal_info.id, proposal_info.proposer, current_block_height)
 
         # case(3): raise revert when proposer is not the proposer who registered the proposal
-        current_block_height = 5
+        current_block_height = proposal_info.end_block_height - 1
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
             self.assertRaisesRegex(IconScoreException, "No permission - only for proposer",
                                    self.network_proposal.cancel_proposal,
@@ -414,7 +425,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_VOTE_RESULT, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_vote_proposal(self):
-        current_block_height = 5
+
         voter_agree = create_address()
         voter_disagree = create_address()
         voter = {
@@ -423,6 +434,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
         }
         proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
             NetworkProposalStatus.VOTING, voter)
+        current_block_height = proposal_info.end_block_height - 1
 
         # case(1): raise revert when not check registered proposal
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
@@ -431,7 +443,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    current_block_height, [])
 
         # case(2): raise revert when end block height < current block height
-        current_block_height = 11
+        current_block_height = proposal_info.end_block_height + 1
         self.network_proposal._check_registered_proposal.return_value = True
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
             self.assertRaisesRegex(IconScoreException, "This proposal has already expired",
@@ -440,7 +452,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    current_block_height, [])
 
         # case(3): raise revert status is CANCELED
-        current_block_height = 5
+        current_block_height = proposal_info.end_block_height - 1
         proposal_info.status = NetworkProposalStatus.CANCELED
         with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
             self.assertRaisesRegex(IconScoreException, "This proposal has already canceled",
