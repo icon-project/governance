@@ -545,10 +545,6 @@ class Governance(IconSystemScoreBase):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
 
-        # check message sender, only owner can add new blacklist
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-
         if self.address == address:
             revert("can't add myself")
 
@@ -564,10 +560,6 @@ class Governance(IconSystemScoreBase):
     def _removeFromScoreBlackList(self, address: Address):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
-
-        # check message sender, only owner can remove from blacklist
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
 
         if address not in self._score_black_list:
             revert('Invalid address: not in list')
@@ -891,6 +883,11 @@ class Governance(IconSystemScoreBase):
         return table
 
     def _set_revision(self, code: str, name: str):
+        # check message sender, only main P-Rep can add new blacklist
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
         code = int(code, 16)
         prev_code = self._revision_code.get()
         if code < prev_code:
@@ -1006,6 +1003,11 @@ class Governance(IconSystemScoreBase):
         return False
 
     def _malicious_score(self, address: str, type: str):
+        # check message sender, only main P-Rep can modify SCORE blacklist
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
         converted_address = Address.from_string(address)
         converted_type = int(type, 16)
         if converted_type == MaliciousScoreType.FREEZE:
@@ -1014,12 +1016,22 @@ class Governance(IconSystemScoreBase):
             self._removeFromScoreBlackList(converted_address)
 
     def _disqualify_prep(self, address: str):
+        # check message sender, only main P-Rep can disqualify P-Rep
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
         address = Address.from_string(address)
 
         self.unregister_prep(address)
         self.DisqualifyPRep(address)
 
     def _set_step_price(self, value: str):
+        # check message sender, only main P-Rep can set step price
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
         step_price = int(value, 16)
         if step_price > 0:
             self._step_price.set(step_price)
