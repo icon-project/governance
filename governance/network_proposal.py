@@ -208,6 +208,8 @@ class NetworkProposal:
         try:
             validator = self._validate_func[proposal_type]
             result = validator(value)
+        except Exception as e:
+            Logger.error(f"Network proposal parameter validation error :{e}")
         finally:
             return result
 
