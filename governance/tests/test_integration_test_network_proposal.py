@@ -46,7 +46,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
         current_block = self._get_block_height()
 
-        if (next_term - current_block) < remain_blocks:
+        if (next_term - current_block) < remain_blocks + 2:
             self._make_blocks(next_term)
 
     def _make_blocks(self, to: int):
@@ -100,9 +100,9 @@ class TestNetworkProposal(IconIntegrateTestBase):
         # process the transaction in local
         tx_result = self.process_transaction(signed_transaction, self.icon_service)
 
-        self.assertTrue('status' in tx_result)
-        self.assertEqual(1, tx_result['status'])
-        self.assertTrue('scoreAddress' in tx_result)
+        self.assertTrue('status' in tx_result, tx_result)
+        self.assertEqual(1, tx_result['status'], tx_result)
+        self.assertTrue('scoreAddress' in tx_result, tx_result)
 
         return tx_result
 
@@ -176,7 +176,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         return {
             ConstantKeys.NAME: name,
-            ConstantKeys.COUNTRY: "ZZZ",
+            ConstantKeys.COUNTRY: "KOR",
             ConstantKeys.CITY: "Unknown",
             ConstantKeys.EMAIL: f"{name}@example.com",
             ConstantKeys.WEBSITE: f"https://{name}.example.com",
@@ -362,7 +362,9 @@ class TestNetworkProposal(IconIntegrateTestBase):
             self._set_revision(REV_IISS, "enable IISS")
 
             # enable decentralization
-            self._set_revision(REV_DECENTRALIZATION, "enable decentralization")
+            response = self._set_revision(REV_DECENTRALIZATION, "enable decentralization")
+            self.assertTrue('status' in response, response)
+            self.assertEqual(1, response['status'], response)
 
             # update governance SCORE
             self._update_governance_score(SCORE_PROJECT)
@@ -381,6 +383,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             response = self.process_transaction_bulk(tx_list, self.icon_service)
             for i, resp in enumerate(response):
                 self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+                self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
         # stake and delegate
         # min delegation amount = 0.02 * total supply
@@ -405,6 +408,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
         # go to next P-Rep term for main P-Rep election
         self._make_blocks_to_next_term()
@@ -415,7 +419,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_010_manage_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(6)
+        self._reset_block_height(5)
 
         # register proposal
         proposer = self._test1
@@ -463,7 +467,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_020_approve_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(4)
+        self._reset_block_height(3)
 
         # register proposal
         proposer = self._test1
@@ -491,7 +495,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(5)
+        self._reset_block_height(4)
 
         # register proposal
         proposer = self._test1
@@ -509,6 +513,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.VOTING), response['status'], response)
 
@@ -528,7 +533,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_030_disapprove_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(4)
+        self._reset_block_height(3)
 
         # register proposal
         proposer = self._test1
@@ -545,6 +550,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.VOTING), response['status'], response)
 
@@ -555,7 +561,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual(hex(NetworkProposalStatus.DISAPPROVED), response['status'], response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(5)
+        self._reset_block_height(4)
 
         # register proposal
         proposer = self._test1
@@ -573,6 +579,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.VOTING), response['status'], response)
 
@@ -592,7 +599,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_040_revision_update(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._reset_block_height(2)
 
         # register proposal
         proposer = self._test1
@@ -611,6 +618,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -621,7 +629,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_050_malicious_score(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._reset_block_height(2)
 
         # register proposal - freeze SCORE
         proposer = self._test1
@@ -639,6 +647,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -653,7 +662,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual("0x1", response, response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._reset_block_height(2)
 
         # register proposal - unfreeze SCORE
         proposer = self._test1
@@ -670,6 +679,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -705,6 +715,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
         # go to next P-Rep term for main P-Rep election
         self._make_blocks_to_next_term()
@@ -724,6 +735,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -739,7 +751,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_070_step_price(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._reset_block_height(2)
 
         # register proposal
         proposer = self._test1
@@ -757,6 +769,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 

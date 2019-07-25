@@ -238,12 +238,7 @@ class NetworkProposal:
         address = Address.from_string(value['address'])
 
         main_preps, _ = get_main_prep_info()
-        if main_preps is None:
-            return False
-
         sub_preps, _ = get_sub_prep_info()
-        if sub_preps is None:
-            return False
 
         for prep in main_preps + sub_preps:
             if prep.address == address:
