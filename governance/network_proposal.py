@@ -206,10 +206,12 @@ class NetworkProposal:
 
         return result
 
-    def get_proposal_list(self, current_block_height: int) -> dict:
-        """ Get proposal list
+    def get_proposal_list(self, current_block_height: int, type: int = None, status: int = None) -> dict:
+        """ Get proposal list to be filtered by type and status
 
         :param current_block_height: current block height
+        :param type: type of network proposal to filter (optional)
+        :param status: status of network proposal to filter (optional)
         :return: the proposal info list in result format in dict
         """
         proposals = []
@@ -219,6 +221,12 @@ class NetworkProposal:
             if proposal_info.end_block_height < current_block_height:
                 if proposal_info.status == NetworkProposalStatus.VOTING:
                     proposal_info.status = NetworkProposalStatus.DISAPPROVED
+
+            if type is not None and proposal_info.type != type:
+                continue
+
+            if status is not None and proposal_info.status != status:
+                continue
 
             proposal_info_in_dict = {
                 "id": proposal_info.id,

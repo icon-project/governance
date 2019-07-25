@@ -347,6 +347,100 @@ class TestUnitNetworkProposal(unittest.TestCase):
             result = self.network_proposal.get_proposal_list(current_block_height)
             self.assertEqual(expected_proposal_list, result)
 
+    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
+    def test_get_proposal_list_when_filter_by_type(self):
+        for i in range(5):
+            expected_proposal_list = {
+                "proposals": []
+            }
+            voter = self._generate_voter(2, 10, 3, 20, 100)
+            buf_network_proposal_type = [
+                NetworkProposalType.TEXT, NetworkProposalType.REVISION, NetworkProposalType.MALICIOUS_SCORE,
+                NetworkProposalType.PREP_DISQUALIFICATION, NetworkProposalType.STEP_PRICE
+            ]
+            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
+                NetworkProposalStatus.VOTING, voter, buf_network_proposal_type[i])
+            self.network_proposal._proposal_list_keys.append(proposal_info.id)
+            proposal_info_in_dict = {
+                "id": proposal_info.id,
+                "description": proposal_info.description,
+                "type": hex(proposal_info.type),
+                "status": hex(proposal_info.status),
+                "startBlockHeight": hex(proposal_info.start_block_height),
+                "endBlockHeight": hex(proposal_info.end_block_height)
+            }
+            expected_proposal_list["proposals"].append(proposal_info_in_dict)
+
+            current_block_height = proposal_info.end_block_height - 1
+            result = self.network_proposal.get_proposal_list(current_block_height, buf_network_proposal_type[i])
+            self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
+            self.assertEqual(expected_proposal_list, result)
+
+    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
+    def test_get_proposal_list_when_filter_by_status(self):
+        for i in range(4):
+            expected_proposal_list = {
+                "proposals": []
+            }
+            voter = self._generate_voter(2, 10, 3, 20, 100)
+            buf_network_proposal_type = [
+                NetworkProposalType.TEXT, NetworkProposalType.REVISION, NetworkProposalType.MALICIOUS_SCORE,
+                NetworkProposalType.PREP_DISQUALIFICATION, NetworkProposalType.STEP_PRICE
+            ]
+            buf_network_proposal_status = [
+                NetworkProposalStatus.VOTING, NetworkProposalStatus.APPROVED,
+                NetworkProposalStatus.DISAPPROVED, NetworkProposalStatus.CANCELED
+            ]
+            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
+                buf_network_proposal_status[i], voter, buf_network_proposal_type[i])
+            self.network_proposal._proposal_list_keys.append(proposal_info.id)
+            proposal_info_in_dict = {
+                "id": proposal_info.id,
+                "description": proposal_info.description,
+                "type": hex(proposal_info.type),
+                "status": hex(proposal_info.status),
+                "startBlockHeight": hex(proposal_info.start_block_height),
+                "endBlockHeight": hex(proposal_info.end_block_height)
+            }
+            expected_proposal_list["proposals"].append(proposal_info_in_dict)
+
+            current_block_height = proposal_info.end_block_height - 1
+            result = self.network_proposal.get_proposal_list(current_block_height, None, buf_network_proposal_status[i])
+            self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
+            self.assertEqual(expected_proposal_list, result)
+
+    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
+    def test_get_proposal_list_when_filter_by_both_type_and_status(self):
+        expected_proposal_list = {
+            "proposals": []
+        }
+        for i in range(5):
+            voter = self._generate_voter(2, 10, 3, 20, 100)
+            buf_network_proposal_type = [
+                NetworkProposalType.TEXT, NetworkProposalType.REVISION, NetworkProposalType.REVISION,
+                NetworkProposalType.PREP_DISQUALIFICATION, NetworkProposalType.STEP_PRICE
+            ]
+            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
+                NetworkProposalStatus.VOTING, voter, buf_network_proposal_type[i])
+            self.network_proposal._proposal_list_keys.append(proposal_info.id)
+            proposal_info_in_dict = {
+                "id": proposal_info.id,
+                "description": proposal_info.description,
+                "type": hex(proposal_info.type),
+                "status": hex(proposal_info.status),
+                "startBlockHeight": hex(proposal_info.start_block_height),
+                "endBlockHeight": hex(proposal_info.end_block_height)
+            }
+            if proposal_info.type == NetworkProposalType.REVISION:
+                expected_proposal_list["proposals"].append(proposal_info_in_dict)
+
+        current_block_height = proposal_info.end_block_height - 1
+        result = self.network_proposal.get_proposal_list(current_block_height, NetworkProposalType.REVISION,
+                                                         NetworkProposalStatus.VOTING)
+        self.assertEqual(2, len(result['proposals']))
+        self.assertEqual(5, len(self.network_proposal._proposal_list))
+        self.assertEqual(expected_proposal_list, result)
+
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_VALIDATE_PROPOSAL, PATCHER_ARRAY_DB, PATCHER_DICT_DB)
     def test_register_proposal(self):
 
@@ -570,18 +664,17 @@ class TestUnitNetworkProposal(unittest.TestCase):
         return voter
 
     @staticmethod
-    def _generate_proposal_info(status: int, voter: dict) -> (ProposalInfo, bytes):
+    def _generate_proposal_info(status: int, voter: dict, type: int = NetworkProposalType.MALICIOUS_SCORE) -> (
+            ProposalInfo, bytes):
         id = create_tx_hash()
         proposer = create_address()
         description = "Disqualify P-Rep A; P-Rep A does not maintain node"
-        type = NetworkProposalType.MALICIOUS_SCORE
         value = {
             "address": bytes.hex(Address.to_bytes(create_address()))
         }
         start_block_height = 1
         end_block_height = 10
         proposal_info = ProposalInfo(id, proposer, description, type, value, start_block_height,
-                                     end_block_height,
-                                     status, voter)
+                                     end_block_height, status, voter)
         buf_proposal_info = deepcopy(proposal_info)
         return proposal_info, buf_proposal_info.to_bytes()
