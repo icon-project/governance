@@ -119,8 +119,7 @@ class NetworkProposal:
         self._proposal_list[id] = proposal_info.to_bytes()
 
     def vote_proposal(self, id: bytes, voter: 'Address', vote_type: int, current_block_height: int,
-                      main_preps: list) -> (
-            bool, int, dict):
+                      main_preps: list) -> (bool, int, dict):
         """ Vote for the proposal - agree or disagree
         
         :param id: transaction hash to vote to the proposal
