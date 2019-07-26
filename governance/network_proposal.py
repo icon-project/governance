@@ -62,7 +62,7 @@ class NetworkProposal:
         :param description: description of the proposal
         :param type: type of the proposal
         :param value: specific value of the proposal
-        :param main_preps: main preps in list, List['PRep']
+        :param main_preps: main preps in list, List['PRepInfo']
         """
         if not self._validate_proposal(type, value):
             revert("Invalid parameter")
