@@ -985,9 +985,14 @@ class Governance(IconSystemScoreBase):
         return proposal_info
 
     @external(readonly=True)
-    def getProposalList(self) -> dict:
-        """ Get all of proposals in list"""
-        return self._network_proposal.get_proposal_list(self.block_height)
+    def getProposalList(self, type: int = None, status: int = None) -> dict:
+        """ Get all of proposals in list
+
+        :param type: type of network proposal to filter (optional)
+        :param status: status of network proposal to filter (optional)
+        :return: proposal list in dict
+        """
+        return self._network_proposal.get_proposal_list(self.block_height, type, status)
 
     def _check_main_prep(self, address: 'Address', main_preps: list) -> bool:
         """ Check if the address is main prep
