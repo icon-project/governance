@@ -22,7 +22,7 @@ class NetworkProposalVote:
 
 
 class ApproveCondition:
-    APPROVE_VOTE_COUNT = 14
+    APPROVE_VOTE_COUNT = 15
     APPROVE_DELEGATION_RATE = 0.66
     DISAPPROVE_VOTE_COUNT = 7
     DISAPPROVE_DELEGATION_RATE = 0.33
@@ -52,7 +52,7 @@ class NetworkProposal:
         ]
 
     def register_proposal(self, id: bytes, proposer: 'Address', start: int, expired: int,
-                          description: str, type: int, value: dict) -> None:
+                          description: str, type: int, value: dict, main_preps: list) -> None:
         """ Put transaction hash and info of the proposal to db
 
         :param id: transaction hash to register the proposal
@@ -62,16 +62,35 @@ class NetworkProposal:
         :param description: description of the proposal
         :param type: type of the proposal
         :param value: specific value of the proposal
+        :param main_preps: main preps in list, List['PRepInfo']
         """
         if not self._validate_proposal(type, value):
             revert("Invalid parameter")
 
         self._proposal_list_keys.put(id)
         _STATUS = NetworkProposalStatus.VOTING
+
+        main_prep_addresses = []
+        main_prep_total_delegated = 0
+        for main_prep in main_preps:
+            main_prep_addresses.append(str(main_prep.address))
+            main_prep_total_delegated += main_prep.delegated
+
         _VOTER = {
-            "agree": [],
-            "disagree": []
+            "agree": {
+                "address": [],
+                "amount": 0
+            },
+            "disagree": {
+                "address": [],
+                "amount": 0
+            },
+            "noVote": {
+                "address": main_prep_addresses,
+                "amount": main_prep_total_delegated
+            }
         }
+
         proposal_info = ProposalInfo(id, proposer, description, type, value, start, expired, _STATUS, _VOTER)
         self._proposal_list[id] = proposal_info.to_bytes()
 
@@ -100,14 +119,15 @@ class NetworkProposal:
         self._proposal_list[id] = proposal_info.to_bytes()
 
     def vote_proposal(self, id: bytes, voter: 'Address', vote_type: int, current_block_height: int,
-                      main_preps: list) -> (bool, int, dict):
+                      main_preps: list) -> (
+            bool, int, dict):
         """ Vote for the proposal - agree or disagree
         
         :param id: transaction hash to vote to the proposal
         :param voter: voter address
         :param vote_type: votes type - agree(NetworkProposalVote.AGREE, 1) or disagree(NetworkProposalVote.DISAGREE, 0)
         :param current_block_height: current block height
-        :param main_preps: main prep list having Prep instance
+        :param main_preps: main preps list
         :return: bool - True means success for voting and False means failure for voting
         """
         if not self._check_registered_proposal(id):
@@ -122,16 +142,26 @@ class NetworkProposal:
             revert("This proposal has already canceled")
 
         _VOTE_TYPE_IN_STR = "agree" if vote_type == NetworkProposalVote.AGREE else "disagree"
+        _NO_VOTE_IN_STR = "noVote"
 
-        if str(voter) in proposal_info.voter["agree"] + proposal_info.voter["disagree"]:
+        if str(voter) in proposal_info.voter["agree"]["address"] + proposal_info.voter["disagree"]["address"]:
             revert("Already voted")
 
-        proposal_info.voter[_VOTE_TYPE_IN_STR].append(str(voter))
+        delegated = 0
+        for main_prep in main_preps:
+            if main_prep.address == voter:
+                delegated = main_prep.delegated
+
+        proposal_info.voter[_VOTE_TYPE_IN_STR]["address"].append(str(voter))
+        proposal_info.voter[_VOTE_TYPE_IN_STR]["amount"] += delegated
+
+        proposal_info.voter[_NO_VOTE_IN_STR]["address"].remove(str(voter))
+        proposal_info.voter[_NO_VOTE_IN_STR]["amount"] -= delegated
 
         # set status
         approved = False
         if proposal_info.status == NetworkProposalStatus.VOTING:
-            if self._check_vote_result(vote_type, proposal_info, main_preps):
+            if self._check_vote_result(vote_type, proposal_info):
                 if vote_type == NetworkProposalVote.AGREE:
                     proposal_info.status = NetworkProposalStatus.APPROVED
                     approved = True
@@ -157,6 +187,9 @@ class NetworkProposal:
         if proposal_info.end_block_height < current_block_height:
             if proposal_info.status == NetworkProposalStatus.VOTING:
                 proposal_info.status = NetworkProposalStatus.DISAPPROVED
+
+        for vote_type in ("agree", "disagree", "noVote"):
+            proposal_info.voter[vote_type]["amount"] = hex(proposal_info.voter[vote_type]["amount"])
 
         result = {
             "proposer": proposal_info.proposer,
@@ -262,35 +295,25 @@ class NetworkProposal:
         return True if proposal_in_bytes else False
 
     @staticmethod
-    def _check_vote_result(vote_type: int, proposal_info: 'ProposalInfo', main_preps: list) -> bool:
+    def _check_vote_result(vote_type: int, proposal_info: 'ProposalInfo') -> bool:
         """ Check that the results of the vote meet the approve or disapprove conditions
-
-        Approved condition
-        1. agreeing preps is more than 14
-        2. amount of total delegation of agreeing preps is more than 66%
-
-        Disapprove condition
-        1. disagreeing preps is more than 7
-        2. amount of total delegation of disagreeing preps is more than 33%
 
         :return: bool
         """
         total_delegated = 0
-        delegated_of_preps_to_vote = 0
-        preps_to_vote: list = proposal_info.voter["agree" if vote_type == NetworkProposalVote.AGREE else "disagree"]
+        for vote_type_in_str in ("agree", "disagree", "noVote"):
+            total_delegated += proposal_info.voter[vote_type_in_str]["amount"]
 
-        for prep in main_preps:
-            total_delegated += prep.delegated
-            if str(prep.address) in preps_to_vote:
-                delegated_of_preps_to_vote += prep.delegated
-
+        preps_to_vote = proposal_info.voter["agree" if vote_type == NetworkProposalVote.AGREE else "disagree"]
+        addresses_of_preps_to_vote: list = preps_to_vote["address"]
+        delegated_of_preps_to_vote: int = preps_to_vote["amount"]
         try:
             if vote_type == NetworkProposalVote.AGREE:
-                return len(preps_to_vote) > ApproveCondition.APPROVE_VOTE_COUNT \
-                       and delegated_of_preps_to_vote / total_delegated > ApproveCondition.APPROVE_DELEGATION_RATE
+                return len(addresses_of_preps_to_vote) >= ApproveCondition.APPROVE_VOTE_COUNT \
+                       and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.APPROVE_DELEGATION_RATE
             else:
-                return len(preps_to_vote) > ApproveCondition.DISAPPROVE_VOTE_COUNT \
-                       and delegated_of_preps_to_vote / total_delegated > ApproveCondition.DISAPPROVE_DELEGATION_RATE
+                return len(addresses_of_preps_to_vote) >= ApproveCondition.DISAPPROVE_VOTE_COUNT \
+                       and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.DISAPPROVE_DELEGATION_RATE
         except ZeroDivisionError:
             return False
 

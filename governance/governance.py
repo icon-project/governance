@@ -18,7 +18,6 @@ from iconservice import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-
 TAG = 'Governance'
 DEBUG = False
 
@@ -920,7 +919,7 @@ class Governance(IconSystemScoreBase):
 
         value_in_dict = json_loads(value.decode())
         self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
-                                                 description, type, value_in_dict)
+                                                 description, type, value_in_dict, main_preps)
 
         self.RegisterNetworkProposal(description, type, value, self.msg.sender)
 

@@ -443,13 +443,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
         tx = self._create_vote_proposal_tx(proposer, np_id, NetworkProposalVote.AGREE)
         self.process_transaction(tx, self.icon_service)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(proposer.get_address() in response['voter']['agree'])
+        self.assertTrue(proposer.get_address() in response['voter']['agree']['address'])
 
         # vote - disagree
         tx = self._create_vote_proposal_tx(self._wallet_array[0], np_id, NetworkProposalVote.DISAGREE)
         self.process_transaction(tx, self.icon_service)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[0].get_address() in response['voter']['disagree'], response)
+        self.assertTrue(self._wallet_array[0].get_address() in response['voter']['disagree']['address'], response)
 
         # cancel proposal
         tx = self._create_cancel_proposal_tx(proposer, np_id)
@@ -463,7 +463,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(0, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertFalse(self._wallet_array[1].get_address() in response['voter']['agree'], response)
+        self.assertFalse(self._wallet_array[1].get_address() in response['voter']['agree']['address'], response)
 
     def test_020_approve_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
@@ -529,7 +529,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(1, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[14].get_address() in response['voter']['agree'], response)
+        self.assertTrue(self._wallet_array[14].get_address() in response['voter']['agree']['address'], response)
 
     def test_030_disapprove_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
@@ -595,7 +595,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(1, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[7].get_address() in response['voter']['agree'], response)
+        self.assertTrue(self._wallet_array[7].get_address() in response['voter']['agree']['address'], response)
 
     def test_040_revision_update(self):
         # go to next P-Rep term for main P-Rep election

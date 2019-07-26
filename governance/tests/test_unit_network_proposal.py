@@ -93,11 +93,8 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
     def test_proposal_info_to_bytes_from_bytes(self):
-        voter = {
-            "agree": [str(create_address()), str(create_address())],
-            "disagree": [str(create_address())]
-        }
-        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+        voter = self._generate_voter(1, 100, 2, 200, 3000)
+        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
             NetworkProposalStatus.VOTING, voter)
         proposal_info_in_bytes = proposal_info.to_bytes()
 
@@ -112,6 +109,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             "status": proposal_info.status,
             "voter": voter
         }
+
         self.assertEqual(proposal_info_in_bytes, dumps(expected_value).encode())
         self.assertEqual(proposal_info_in_bytes, proposal_info.from_bytes(proposal_info_in_bytes).to_bytes())
 
@@ -183,40 +181,48 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.network_proposal._proposal_list[tx_hash] = create_tx_hash()
         self.assertTrue(self.network_proposal._check_registered_proposal(tx_hash))
 
+    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
     def test_check_vote_result(self):
-        # case(1): return False, when type is 'agree', len(prep) <= 14, delegated >= 66%
-        main_preps, preps_to_vote = self._create_preps_to_vote(14, 70)
-        self.assertFalse(self._check_vote_result_by_mocking(NetworkProposalVote.AGREE, main_preps, preps_to_vote))
+        # case(1): return False, when type is 'agree', len(prep) < 15, delegated >= 66%
+        voter = self._generate_voter(14, 66, 0, 0, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.AGREE, proposal_info))
 
-        # case(2): return False, when type is 'agree', len(prep) > 14, delegated < 66%
-        main_preps, preps_to_vote = self._create_preps_to_vote(15, 60)
-        self.assertFalse(self._check_vote_result_by_mocking(NetworkProposalVote.AGREE, main_preps, preps_to_vote))
+        # case(2): return False, when type is 'agree', len(prep) >= 15, delegated < 66%
+        voter = self._generate_voter(15, 65, 0, 0, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.AGREE, proposal_info))
 
-        # case(3): return True, when type is 'agree', len(prep) > 14, delegated >= 66%
-        main_preps, preps_to_vote = self._create_preps_to_vote(15, 70)
-        self.assertTrue(self._check_vote_result_by_mocking(NetworkProposalVote.AGREE, main_preps, preps_to_vote))
+        # case(3): return True, when type is 'agree', len(prep) >= 15, delegated >= 66%
+        voter = self._generate_voter(15, 66, 0, 0, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertTrue(self.network_proposal._check_vote_result(NetworkProposalVote.AGREE, proposal_info))
 
-        # case(4): return False, when type is 'disagree', len(prep) <= 7, delegated >= 33%
-        main_preps, preps_to_vote = self._create_preps_to_vote(7, 40)
-        self.assertFalse(self._check_vote_result_by_mocking(NetworkProposalVote.DISAGREE, main_preps, preps_to_vote))
+        # case(4): return False, when type is 'disagree', len(prep) < 7, delegated >= 33%
+        voter = self._generate_voter(0, 0, 6, 33, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
 
-        # case(5): return False, when type is 'disagree', len(prep) > 7, delegated < 33%
-        main_preps, preps_to_vote = self._create_preps_to_vote(8, 30)
-        self.assertFalse(self._check_vote_result_by_mocking(NetworkProposalVote.DISAGREE, main_preps, preps_to_vote))
+        # case(5): return False, when type is 'disagree', len(prep) >= 7, delegated < 33%
+        voter = self._generate_voter(0, 0, 7, 32, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
 
-        # case(6): return True, when type is 'disagree', len(prep) > 7, delegated >= 33%
-        main_preps, preps_to_vote = self._create_preps_to_vote(8, 40)
-        self.assertTrue(self._check_vote_result_by_mocking(NetworkProposalVote.DISAGREE, main_preps, preps_to_vote))
+        # case(6): return True, when type is 'disagree', len(prep) >= 7, delegated >= 33%
+        voter = self._generate_voter(0, 0, 7, 33, 100)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        self.assertTrue(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_get_proposal(self):
-        voter = {
-            "agree": [str(create_address()), str(create_address())],
-            "disagree": [str(create_address())]
-        }
-        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+        voter = self._generate_voter(2, 10, 3, 20, 100)
+        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
             NetworkProposalStatus.VOTING, voter)
         current_block_height = proposal_info.end_block_height + 1
+
+        buf_proposal_info = deepcopy(proposal_info)
+        for vote_type in ("agree", "disagree", "noVote"):
+            buf_proposal_info.voter[vote_type]["amount"] = hex(buf_proposal_info.voter[vote_type]["amount"])
 
         expected_value = {
             "proposer": proposal_info.proposer,
@@ -224,7 +230,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             "status": hex(proposal_info.status),
             "startBlockHeight": hex(proposal_info.start_block_height),
             "endBlockHeight": hex(proposal_info.end_block_height),
-            "voter": proposal_info.voter,
+            "voter": buf_proposal_info.voter,
             "contents": {
                 "description": proposal_info.description,
                 "type": hex(proposal_info.type),
@@ -234,14 +240,14 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
         self.network_proposal._check_registered_proposal.return_value = True
         # case(1): when finish prep period (end block height < current block height), NetworkProposalStatus == VOTING
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.DISAPPROVED)
             self.assertEqual(result, expected_value)
 
         # case(2): when finish prep period (end block height < current block height), NetworkProposalStatus == APPROVED
         proposal_info.status = NetworkProposalStatus.APPROVED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.APPROVED)
             self.assertEqual(result, expected_value)
@@ -249,14 +255,14 @@ class TestUnitNetworkProposal(unittest.TestCase):
         # case(3): when finish prep period (end block height < current block height),
         # NetworkProposalStatus == DISAPPROVED
         proposal_info.status = NetworkProposalStatus.DISAPPROVED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.DISAPPROVED)
             self.assertEqual(result, expected_value)
 
         # case(4): when finish prep period (end block height < current block height), NetworkProposalStatus == CANCELED
         proposal_info.status = NetworkProposalStatus.CANCELED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.CANCELED)
             self.assertEqual(result, expected_value)
@@ -264,28 +270,28 @@ class TestUnitNetworkProposal(unittest.TestCase):
         current_block_height = proposal_info.end_block_height - 1
         proposal_info.status = NetworkProposalStatus.VOTING
         # case(5): during prep period (end block height >= current block height), Network proposal status == VOTING
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.VOTING)
             self.assertEqual(result, expected_value)
 
         proposal_info.status = NetworkProposalStatus.APPROVED
         # case(6): during prep period (end block height >= current block height), Network proposal status == APPROVED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.APPROVED)
             self.assertEqual(result, expected_value)
 
         proposal_info.status = NetworkProposalStatus.DISAPPROVED
         # case(7): during prep period (end block height >= current block height), Network proposal status == DISAPPROVED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.DISAPPROVED)
             self.assertEqual(result, expected_value)
 
         proposal_info.status = NetworkProposalStatus.CANCELED
         # case(8): during prep period (end block height >= current block height), Network proposal status == CANCELED
-        with patch.object(ProposalInfo, 'from_bytes', return_value=proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(proposal_info)):
             result = self.network_proposal.get_proposal(proposal_info.id, current_block_height)
             expected_value["status"] = hex(NetworkProposalStatus.CANCELED)
             self.assertEqual(result, expected_value)
@@ -295,12 +301,10 @@ class TestUnitNetworkProposal(unittest.TestCase):
         expected_proposal_list = {
             "proposals": []
         }
-        voter = {
-            "agree": [str(create_address()), str(create_address())],
-            "disagree": [str(create_address())]
-        }
+        voter = self._generate_voter(2, 10, 3, 20, 100)
+
         for i in range(5):
-            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
                 NetworkProposalStatus.VOTING, voter)
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
             proposal_info_in_dict = {
@@ -322,12 +326,10 @@ class TestUnitNetworkProposal(unittest.TestCase):
         expected_proposal_list = {
             "proposals": []
         }
-        voter = {
-            "agree": [str(create_address()), str(create_address())],
-            "disagree": [str(create_address())]
-        }
+        voter = self._generate_voter(2, 10, 3, 20, 100)
+
         for i in range(5):
-            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
                 NetworkProposalStatus.VOTING, voter)
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
             proposal_info_in_dict = {
@@ -363,27 +365,31 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.network_proposal._proposal_list_keys = Mock()
         self.network_proposal._proposal_list_keys.configure_mock(**attrs)
 
-        voter = {
-            "agree": [],
-            "disagree": []
-        }
+        # check raise when not validate proposal
+        voter = self._generate_voter(0, 0, 0, 0, 0)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+        with patch.object(self.network_proposal, '_validate_proposal', return_value=False):
+            self.assertRaisesRegex(IconScoreException, "Invalid parameter", self.network_proposal.register_proposal,
+                                   proposal_info.id, proposal_info.proposer, proposal_info.start_block_height,
+                                   proposal_info.end_block_height,
+                                   proposal_info.description, proposal_info.type, proposal_info.value, [])
+
         for i in range(5):
-            proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
-                NetworkProposalStatus.VOTING, voter)
+            voter = self._generate_voter(0, 0, 0, 0, DEFAULT_DELEGATED * COUNT_OF_MAIN_PREPS)
+            proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
+            main_preps = [Prep(address, DEFAULT_DELEGATED) for address in voter["noVote"]["address"]]
             self.network_proposal.register_proposal(proposal_info.id, proposal_info.proposer,
                                                     proposal_info.start_block_height, proposal_info.end_block_height,
                                                     proposal_info.description,
-                                                    proposal_info.type, proposal_info.value)
+                                                    proposal_info.type, proposal_info.value,
+                                                    main_preps)
             self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
             self.assertEqual(self.network_proposal._proposal_list[proposal_info.id], proposal_info.to_bytes())
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_cancel_proposal(self):
-        voter = {
-            "agree": [str(create_address()), str(create_address())],
-            "disagree": [str(create_address())]
-        }
-        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+        voter = self._generate_voter(1, DEFAULT_DELEGATED, 2, DEFAULT_DELEGATED, 100)
+        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
             NetworkProposalStatus.VOTING, voter)
         current_block_height = proposal_info.end_block_height - 1
 
@@ -425,14 +431,11 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_VOTE_RESULT, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_vote_proposal(self):
-
-        voter_agree = create_address()
-        voter_disagree = create_address()
-        voter = {
-            "agree": [str(voter_agree), str(create_address())],
-            "disagree": [str(voter_disagree)]
-        }
-        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._get_proposal_info(
+        voter = self._generate_voter(3, DEFAULT_DELEGATED, 2, DEFAULT_DELEGATED,
+                                     DEFAULT_DELEGATED * COUNT_OF_MAIN_PREPS)
+        voter_agree = voter["agree"]["address"][0]
+        voter_disagree = voter["disagree"]["address"][0]
+        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
             NetworkProposalStatus.VOTING, voter)
         current_block_height = proposal_info.end_block_height - 1
 
@@ -499,19 +502,24 @@ class TestUnitNetworkProposal(unittest.TestCase):
         # case(6): when status is VOTING and check vote result is True and vote type is AGREE,
         # check status is APPROVED and return values is correct
         buf_proposal_info = deepcopy(proposal_info)
-        with patch.object(ProposalInfo, 'from_bytes', return_value=buf_proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(buf_proposal_info)):
             self.assertEqual(buf_proposal_info.status, NetworkProposalStatus.VOTING)
             self.network_proposal._proposal_list[proposal_info.id] = create_tx_hash()
-            buf_voter = create_address()
+            buf_voter_address = voter["noVote"]["address"][0]
+            main_preps = [Prep(address, DEFAULT_DELEGATED if address != buf_voter_address else DEFAULT_DELEGATED * 2)
+                          for address in
+                          voter["agree"]["address"] + voter["disagree"]["address"] + voter["noVote"]["address"]]
             approved, proposal_info_type, proposal_info_value = self.network_proposal.vote_proposal(proposal_info.id,
-                                                                                                    buf_voter,
+                                                                                                    buf_voter_address,
                                                                                                     NetworkProposalVote.AGREE,
                                                                                                     current_block_height,
-                                                                                                    [])
+                                                                                                    main_preps)
             buf_proposal_info.status = NetworkProposalStatus.APPROVED
-            buf_proposal_info.voter["agree"].append(str(buf_voter))
-            self.assertEqual(ProposalInfo.from_bytes(self.network_proposal._proposal_list[proposal_info.id]),
-                             buf_proposal_info)
+            buf_proposal_info.voter["agree"]["address"].append(str(buf_voter_address))
+            buf_proposal_info.voter["agree"]["amount"] += DEFAULT_DELEGATED * 2
+            buf_proposal_info.voter["noVote"]["address"].remove(str(buf_voter_address))
+            buf_proposal_info.voter["noVote"]["amount"] -= DEFAULT_DELEGATED * 2
+            self.assertEqual(self.network_proposal._proposal_list[proposal_info.id], buf_proposal_info.to_bytes())
             self.assertTrue(approved)
             self.assertEqual(proposal_info.type, proposal_info_type)
             self.assertEqual(proposal_info.value, proposal_info_value)
@@ -519,52 +527,50 @@ class TestUnitNetworkProposal(unittest.TestCase):
         # case(7): when status is VOTING and check vote result is True and vote type is DISAGREE,
         # check status is DISAPPROVED and return values is correct
         buf_proposal_info = deepcopy(proposal_info)
-        with patch.object(ProposalInfo, 'from_bytes', return_value=buf_proposal_info):
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(buf_proposal_info)):
             buf_proposal_info.status = NetworkProposalStatus.VOTING
             self.assertEqual(buf_proposal_info.status, NetworkProposalStatus.VOTING)
-            buf_voter = create_address()
+            buf_voter_address = voter["noVote"]["address"][0]
+            main_preps = [Prep(address, DEFAULT_DELEGATED if address != buf_voter_address else DEFAULT_DELEGATED * 2)
+                          for address in
+                          voter["agree"]["address"] + voter["disagree"]["address"] + voter["noVote"]["address"]]
             approved, proposal_info_type, proposal_info_value = self.network_proposal.vote_proposal(proposal_info.id,
-                                                                                                    buf_voter,
+                                                                                                    buf_voter_address,
                                                                                                     NetworkProposalVote.DISAGREE,
                                                                                                     current_block_height,
-                                                                                                    [])
+                                                                                                    main_preps)
             buf_proposal_info.status = NetworkProposalStatus.DISAPPROVED
-            buf_proposal_info.voter["disagree"].append(str(buf_voter))
-            self.assertEqual(ProposalInfo.from_bytes(self.network_proposal._proposal_list[proposal_info.id]),
-                             buf_proposal_info)
+            buf_proposal_info.voter["disagree"]["address"].append(str(buf_voter_address))
+            buf_proposal_info.voter["disagree"]["amount"] += DEFAULT_DELEGATED * 2
+            buf_proposal_info.voter["noVote"]["address"].remove(str(buf_voter_address))
+            buf_proposal_info.voter["noVote"]["amount"] -= DEFAULT_DELEGATED * 2
+            self.assertEqual(self.network_proposal._proposal_list[proposal_info.id], buf_proposal_info.to_bytes())
             self.assertFalse(approved)
             self.assertEqual(proposal_info.type, proposal_info_type)
             self.assertEqual(proposal_info.value, proposal_info_value)
 
     @staticmethod
-    def _create_preps_to_vote(count_of_preps_to_vote: int, delegated_rate: int):
-        main_preps, preps_to_vote = [], []
-        total_delegated_of_preps_to_vote = 0
-        for i in range(count_of_preps_to_vote):
-            prep_address: Address = create_address()
-            preps_to_vote.append(str(prep_address))
-            # append preps to vote on main_preps
-            main_preps.append(Prep(prep_address, DEFAULT_DELEGATED))
-            total_delegated_of_preps_to_vote += DEFAULT_DELEGATED
-
-        count_of_preps_not_to_vote = COUNT_OF_MAIN_PREPS - count_of_preps_to_vote
-        for i in range(count_of_preps_not_to_vote):
-            delegated = (100 - delegated_rate) * total_delegated_of_preps_to_vote / (
-                    delegated_rate * count_of_preps_not_to_vote)
-            main_preps.append(Prep(create_address(), int(delegated)))
-
-        return main_preps, preps_to_vote
-
-    @staticmethod
-    def _check_vote_result_by_mocking(vote_type: int, main_preps: list, preps_to_vote: list) -> bool:
-        vote_type_key = "agree" if vote_type == NetworkProposalVote.AGREE else "disagree"
-        proposal_info = Mock(voter={vote_type_key: preps_to_vote})
-        proposal_info.__class = ProposalInfo
-        vote_result = NetworkProposal._check_vote_result(vote_type, proposal_info, main_preps)
-        return vote_result
+    def _generate_voter(cnt_agree_voter: int, delegated_agree_voter: int, cnt_disagree_voter: int,
+                        delegated_disagree_voter: int, total_delegated: int):
+        voter = {
+            "agree": {
+                "address": [str(create_address()) for _ in range(cnt_agree_voter)],
+                "amount": delegated_agree_voter
+            },
+            "disagree": {
+                "address": [str(create_address()) for _ in range(cnt_disagree_voter)],
+                "amount": delegated_disagree_voter
+            },
+            "noVote": {
+                "address": [
+                    str(create_address()) for _ in range(COUNT_OF_MAIN_PREPS - cnt_agree_voter - cnt_disagree_voter)],
+                "amount": total_delegated - delegated_agree_voter - delegated_disagree_voter
+            }
+        }
+        return voter
 
     @staticmethod
-    def _get_proposal_info(status: int, voter: dict):
+    def _generate_proposal_info(status: int, voter: dict) -> (ProposalInfo, bytes):
         id = create_tx_hash()
         proposer = create_address()
         description = "Disqualify P-Rep A; P-Rep A does not maintain node"
