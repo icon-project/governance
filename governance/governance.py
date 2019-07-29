@@ -136,26 +136,6 @@ class Governance(IconSystemScoreBase):
     def StepPriceChanged(self, stepPrice: int):
         pass
 
-    @eventlog(indexed=1)
-    def StepCostChanged(self, stepType: str, cost: int):
-        pass
-
-    @eventlog(indexed=1)
-    def MaxStepLimitChanged(self, contextType: str, value: int):
-        pass
-
-    @eventlog(indexed=0)
-    def AddImportWhiteListLog(self, addList: str, addCount: int):
-        pass
-
-    @eventlog(indexed=0)
-    def RemoveImportWhiteListLog(self, removeList: str, removeCount: int):
-        pass
-
-    @eventlog(indexed=0)
-    def UpdateServiceConfigLog(self, serviceFlag: int):
-        pass
-
     @eventlog(indexed=0)
     def RevisionChanged(self, revisionCode: int, revisionName: str):
         pass
@@ -497,48 +477,10 @@ class Governance(IconSystemScoreBase):
         for auditor in self._auditor_list:
             Logger.debug(f' --- {auditor}', TAG)
 
-    @external
-    def addDeployer(self, address: Address):
-        if address.is_contract:
-            revert(f'Invalid EOA Address: {address}')
-        # check message sender, only owner can add new deployer
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-        if address not in self._deployer_list:
-            self._deployer_list.put(address)
-        else:
-            revert(f'Invalid address: already deployer')
-        if DEBUG is True:
-            self._print_deployer_list('addDeployer')
-
-    @external
-    def removeDeployer(self, address: Address):
-        if address.is_contract:
-            revert(f'Invalid EOA Address: {address}')
-        if address not in self._deployer_list:
-            revert('Invalid address: not in list')
-        # check message sender
-        if self.msg.sender != self.owner:
-            if self.msg.sender != address:
-                revert('Invalid sender: not yourself')
-        # get the topmost value
-        top = self._deployer_list.pop()
-        if top != address:
-            for i in range(len(self._deployer_list)):
-                if self._deployer_list[i] == address:
-                    self._deployer_list[i] = top
-        if DEBUG is True:
-            self._print_deployer_list('removeDeployer')
-
     @external(readonly=True)
     def isDeployer(self, address: Address) -> bool:
         Logger.debug(f'isDeployer address: {address}', TAG)
         return address in self._deployer_list
-
-    def _print_deployer_list(self, header: str):
-        Logger.debug(f'{header}: list len = {len(self._deployer_list)}', TAG)
-        for deployer in self._deployer_list:
-            Logger.debug(f' --- {deployer}', TAG)
 
     def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
@@ -619,34 +561,9 @@ class Governance(IconSystemScoreBase):
             result[key] = value
         return result
 
-    @external
-    def setStepCost(self, stepType: str, cost: int):
-        # only owner can set new step cost
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-        if cost < 0:
-            if stepType != STEP_TYPE_CONTRACT_DESTRUCT and \
-                    stepType != STEP_TYPE_DELETE:
-                revert(f'Invalid step cost: {stepType}, {cost}')
-        self._step_costs[stepType] = cost
-        self.StepCostChanged(stepType, cost)
-
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
         return self._max_step_limits[contextType]
-
-    @external
-    def setMaxStepLimit(self, contextType: str, value: int):
-        # only owner can set new context type value
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-        if value < 0:
-            revert('Invalid value: negative number')
-        if contextType == CONTEXT_TYPE_INVOKE or contextType == CONTEXT_TYPE_QUERY:
-            self._max_step_limits[contextType] = value
-            self.MaxStepLimitChanged(contextType, value)
-        else:
-            revert("Invalid context type")
 
     @external(readonly=True)
     def getVersion(self) -> str:
@@ -658,121 +575,6 @@ class Governance(IconSystemScoreBase):
         if self._import_white_list[key] == "":
             self._import_white_list[key] = "*"
             self._import_white_list_keys.put(key)
-
-    @external
-    def addImportWhiteList(self, importStmt: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-        import_stmt_dict = {}
-        try:
-            import_stmt_dict: dict = self._check_import_stmt(importStmt)
-        except Exception as e:
-            revert(f'Invalid import statement: {e}')
-        # add to import white list
-        log_entry = []
-        for key, value in import_stmt_dict.items():
-            old_value: str = self._import_white_list[key]
-            if old_value == "*":
-                # no need to add
-                continue
-
-            if len(value) == 0:
-                # set import white list as ALL
-                self._import_white_list[key] = "*"
-
-                # add to import white list keys
-                if old_value == "":
-                    self._import_white_list_keys.put(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, value))
-            elif old_value == "":
-                # set import white list
-                self._import_white_list[key] = ','.join(value)
-                # add to import white list keys
-                self._import_white_list_keys.put(key)
-                # make added item list for eventlog
-                log_entry.append((key, value))
-            else:
-                old_value_list = old_value.split(',')
-                new_value = []
-                for v in value:
-                    if v not in old_value_list:
-                        new_value.append(v)
-
-                # set import white list
-                self._import_white_list[key] = f'{old_value},{",".join(new_value)}'
-
-                # make added item list for eventlog
-                log_entry.append((key, new_value))
-
-        # make eventlog
-        if len(log_entry):
-            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
-
-        if DEBUG is True:
-            Logger.debug(f'checking added item ({importStmt}): {self.isInImportWhiteList(importStmt)}')
-
-    @external
-    def removeImportWhiteList(self, importStmt: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-
-        import_stmt_dict = {}
-        try:
-            import_stmt_dict: dict = self._check_import_stmt(importStmt)
-        except Exception as e:
-            revert(f'Invalid import statement: {e}')
-
-        # remove from import white list
-        log_entry = []
-        for key, value in import_stmt_dict.items():
-            old_value: str = self._import_white_list[key]
-            if old_value == "*":
-                if len(value) == 0:
-                    # remove import white list
-                    self._remove_import_white_list(key)
-
-                    # make added item list for eventlog
-                    log_entry.append((key, value))
-                continue
-
-            if len(value) == 0:
-                # remove import white list
-                self._remove_import_white_list(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, value))
-
-                # add to import white list keys
-                self._import_white_list_keys.put(key)
-            else:
-                old_value_list = old_value.split(',')
-                remove_value = []
-                new_value = []
-                for v in old_value_list:
-                    if v in value:
-                        remove_value.append(v)
-                    else:
-                        new_value.append(v)
-
-                # set import white list
-                if len(new_value):
-                    self._import_white_list[key] = f'{",".join(new_value)}'
-                else:
-                    self._remove_import_white_list(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, remove_value))
-
-        if len(log_entry):
-            # make eventlog
-            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
-
-        if DEBUG is True:
-            Logger.debug(f'checking removed item ({importStmt}): {self.isInImportWhiteList(importStmt)}')
 
     @external(readonly=True)
     def isInImportWhiteList(self, importStmt: str) -> bool:
@@ -842,32 +644,6 @@ class Governance(IconSystemScoreBase):
 
     def _set_initial_service_config(self):
         self._service_config.set(self.get_icon_service_flag() | 8)
-
-    @external
-    def updateServiceConfig(self, serviceFlag: int):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            revert('Invalid sender: not owner')
-
-        if serviceFlag < 0:
-            revert(f'updateServiceConfig: serviceFlag({serviceFlag}) < 0')
-
-        max_flag = 0
-        for flag in IconServiceFlag:
-            max_flag |= flag
-
-        if serviceFlag > max_flag:
-            revert(f'updateServiceConfig: serviceFlag({serviceFlag}) > max_flag({max_flag})')
-
-        prev_service_config = self._service_config.get()
-        if prev_service_config != serviceFlag:
-            self._service_config.set(serviceFlag)
-            self.UpdateServiceConfigLog(serviceFlag)
-            if DEBUG is True:
-                Logger.debug(f'updateServiceConfig (prev: {prev_service_config} flag: {serviceFlag})')
-        else:
-            if DEBUG is True:
-                Logger.debug(f'updateServiceConfig not update ({serviceFlag})')
 
     @external(readonly=True)
     def getServiceConfig(self) -> dict:
