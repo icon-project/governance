@@ -110,7 +110,7 @@ Query method does not change state. Read-only.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | a SCORE address to check the status |
+| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address whose status be checked |
 
 ### Examples
 
@@ -224,6 +224,7 @@ Query method does not change state. Read-only.
 #### Response: (Fee 2.0) SCORE deposit status
 
 `depositInfo` field will be shown when there is a deposit in the SCORE.
+
 ```json
 {
     "jsonrpc": "2.0",
@@ -676,11 +677,11 @@ None
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| id| [T\_HASH](#T_HASH) | a ID to query. Transaction hash of registerProposal transaction|
+| id| [T\_HASH](#T_HASH) | Transaction hash of the registered network proposal |
 
 ### Returns
 
-`T_DICT` - a dict: Information of the network proposal
+`T_DICT` - Information of the network proposal in dict
 
 ### Examples
 
@@ -729,13 +730,13 @@ None
                 "amount": "0x123"
             },
             "noVote": {
-                "address": ["hx31258ceb872e08851f1f59694dac2558708ece11", "hx31258ceb872e08851f1f59694dac2558708eceff"],
+                "address": ["hx31258ceb872e08851f1f59694dac2558708ece11", .. , "hx31258ceb872e08851f1f59694dac2558708eceff"],
                 "amount": "0x12312341234a"
             },
         },
         "contents": {
             "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
-            "type": "0x1",
+            "type": "0x3",
             "value": {
                 "address": "hxbe258ceb872e08851f1f59694dac2558708ece11"
             }
@@ -746,18 +747,18 @@ None
 
 ## getProposalList
 
-* Query network proposals.
+* Query all of the network proposals.
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| type| [T\_INT](#T_INT) | (Optional) a type to query. |
-| status| [T\_INT](#T_INT) | (Optional) a status to query. |
+| type| [T\_INT](#T_INT) | Type for querying (optional) |
+| status| [T\_INT](#T_INT) | Status for querying (optional) |
 
 ### Returns
 
-`T_LIST` - a list of dict: List of summarized information of network proposals/
+`T_LIST` - List of summarized information of network proposals in dict.
 
 ### Examples
 
@@ -777,7 +778,7 @@ None
         "data": {
             "method": "getProposalList",
             "params": {
-                "type": "0x1",
+                "type": "0x3",
                 "status": "0x0"
             }
         }
@@ -794,10 +795,17 @@ None
     "result": {
         "proposals" : [
             {
-                "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
-                "type": "0x1",
+                "description": "(1) Disqualify P-Rep A; P-Rep A does not maintain node",
+                "type": "0x3",
                 "status" : "0x0",
                 "startBlockHeight": "0x1",
+                "endBlockHeight" : "0x65"
+            },
+           {
+                "description": "(2) Disqualify P-Rep B; P-Rep B does not maintain node",
+                "type": "0x3",
+                "status" : "0x0",
+                "startBlockHeight": "0x2",
                 "endBlockHeight" : "0x65"
             }
         ]
@@ -852,7 +860,7 @@ Invoke method can initiate state transition.
 
 ## removeAuditor
 
-* Removes an address from the auditor list.
+* Removes the address from the auditor list.
 * The address removed from the auditor list cannot call `acceptScore` and `rejectScore` afterward.
 * This function can be invoked only by either Governance SCORE owner or the auditor herself.
 
@@ -860,7 +868,7 @@ Invoke method can initiate state transition.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address that is in the auditor list |
+| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address in the auditor list |
 
 ### Examples
 
@@ -893,7 +901,7 @@ Invoke method can initiate state transition.
 ## registerProposal
 
 * Register the network proposal
-* This function can be invoked only by main P-Rep.
+* This function can be invoked only by the main P-Reps.
 
 ### Parameters
 
@@ -901,24 +909,24 @@ Invoke method can initiate state transition.
 |:----|:-----------|-----|
 | description | [T\_STR](#T_STR) | Description of the network proposal |
 | type | [T\_INT](#T_INT) | Type of the network proposal |
-| value | T\_DICT | Specific values of the network proposal. Hex string of UTF-8 encode bytes data of JSON string)\nex) "0x" + bytes.hex(json.dumps(value).encode) |
+| value | T\_DICT | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
 
 #### value for type 0x0 (Text)
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| text | [T\_STR](#T_STR) | text value |
+| text | [T\_STR](#T_STR) | Text value |
 
 #### value for type 0x1 (Revision)
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| code | [T\_INT](#T_INT) | revision code |
-| name | [T\_STR](#T_STR) | revision name |
+| code | [T\_INT](#T_INT) | Revision code |
+| name | [T\_STR](#T_STR) | Revision name |
 
 #### value for type 0x2 (Malicious SCORE)
 | Key | Value Type | Description |
 |:----|:-----------|-----|
 | address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address |
-| type | [T\_INT](#T_INT) | 0x0: freeze, 0x1: unfreeze|
+| type | [T\_INT](#T_INT) | 0x0: Freeze, 0x1: Unfreeze |
 
 #### value for type 0x3 (P-Rep disqualification)
 | Key | Value Type | Description |
@@ -928,7 +936,7 @@ Invoke method can initiate state transition.
 #### value for type 0x4 (StepPrice)
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| value | [T\_INT](#T_INT) | integer of the step price in loop |
+| value | [T\_INT](#T_INT) | An integer of the step price in loop |
 
 ### Examples
 
@@ -952,8 +960,10 @@ Invoke method can initiate state transition.
             "method": "registerProposal",
             "params": {
                 "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
-                "type": "0x1",
-                "value": "0x7b2261646472657373223a2022687865376166356663666438646663363735333061303161306534303338383236383735323864666362227d"
+                "type": "0x0",
+                "value": {
+                  "text": "0x7b2261646472657373223a2022687865..."
+                }
             }
         }
     }
@@ -1000,14 +1010,14 @@ Invoke method can initiate state transition.
 
 ## voteProposal
 
-* vote to the network proposal
+* vote on the network proposal
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to cancel |
-| vote | [T\_INT](#T_INT) | 0x0: disagree, 0x1: agree |
+| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to vote |
+| vote | [T\_INT](#T_INT) | 0x0: Disagree, 0x1: Agree |
 
 ### Examples
 
