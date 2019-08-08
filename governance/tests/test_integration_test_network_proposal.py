@@ -44,29 +44,29 @@ class TestNetworkProposal(IconIntegrateTestBase):
     def _reset_block_height(self, remain_blocks):
         iiss_info = self._get_iiss_info()
         next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
+        if next_term == 0:
+            next_term = int(iiss_info.get('nextCalculation', 0), 16)
         current_block = self._get_block_height()
 
-        if (next_term - current_block) < remain_blocks + 2:
+        if (next_term - current_block) < remain_blocks:
             self._make_blocks(next_term)
 
     def _make_blocks(self, to: int):
         block_height = self._get_block_height()
 
         while to > block_height:
-            self.process_message_tx_without_txresult(self.icon_service,
-                                                     self._test1,
-                                                     self._genesis,
-                                                     msg="test message")
             self.process_confirm_block_tx(self.icon_service)
             block_height += 1
 
     def _make_blocks_to_next_term(self) -> int:
         iiss_info = self._get_iiss_info()
         next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
+        if next_term == 0:
+            next_term = int(iiss_info.get('nextCalculation', 0), 16)
 
         self._make_blocks(to=next_term)
 
-        # self.assertEqual(self._get_block_height(), next_term)
+        self.assertEqual(next_term, self._get_block_height())
         return next_term
 
     def _get_iiss_info(self) -> dict:
@@ -182,7 +182,6 @@ class TestNetworkProposal(IconIntegrateTestBase):
             ConstantKeys.WEBSITE: f"https://{name}.example.com",
             ConstantKeys.DETAILS: f"https://{name}.example.com/details",
             ConstantKeys.P2P_ENDPOINT: f"{name}.example.com:7100",
-            ConstantKeys.PUBLIC_KEY: f"0x{key_wallet.bytes_public_key.hex()}"
         }
 
     def _create_register_prep_tx_list(self, preps: List['KeyWallet']) -> List['SignedTransaction']:
@@ -341,7 +340,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         call = CallBuilder() \
             .from_(self._test1.get_address()) \
             .to(SCORE_INSTALL_ADDRESS) \
-            .method("getMainPRepList") \
+            .method("getMainPReps") \
             .build()
         response = self.process_call(call, self.icon_service)
         return response
@@ -372,7 +371,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         call = CallBuilder() \
             .from_(self._test1.get_address()) \
             .to(SCORE_INSTALL_ADDRESS) \
-            .method("getPRepList") \
+            .method("getPReps") \
             .build()
         response = self.process_call(call, self.icon_service)
 
@@ -415,7 +414,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # get main P-Rep
         response = self.get_main_preps()
-        self.assertEqual(22, len(response['preps']))
+        self.assertEqual(22, len(response['preps']), response)
 
     def test_010_manage_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
@@ -747,7 +746,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             .params({"address": new_prep.get_address()}) \
             .build()
         response = self.process_call(call, self.icon_service)
-        self.assertEqual(hex(PRepStatus.PENALTY1.value), response['status'], response)
+        self.assertEqual(hex(PRepStatus.DISQUALIFIED.value), response['status'], response)
 
     def test_070_step_price(self):
         # go to next P-Rep term for main P-Rep election
