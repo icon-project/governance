@@ -24,7 +24,7 @@ class NetworkProposalVote:
 class ApproveCondition:
     APPROVE_VOTE_COUNT = 15
     APPROVE_DELEGATION_RATE = 0.66
-    DISAPPROVE_VOTE_COUNT = 7
+    DISAPPROVE_VOTE_COUNT = 8
     DISAPPROVE_DELEGATION_RATE = 0.33
 
 
