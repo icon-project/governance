@@ -72,26 +72,30 @@ class NetworkProposal:
 
         main_prep_addresses = []
         main_prep_total_delegated = 0
+        proposer_name = ''
         for main_prep in main_preps:
             main_prep_addresses.append(str(main_prep.address))
             main_prep_total_delegated += main_prep.delegated
+            if main_prep.address == proposer:
+                proposer_name = main_prep.name
 
         _VOTER = {
             "agree": {
-                "address": [],
+                "list": [],
                 "amount": 0
             },
             "disagree": {
-                "address": [],
+                "list": [],
                 "amount": 0
             },
             "noVote": {
-                "address": main_prep_addresses,
+                "list": main_prep_addresses,
                 "amount": main_prep_total_delegated
             }
         }
 
-        proposal_info = ProposalInfo(id, proposer, description, type, value, start, expired, _STATUS, _VOTER)
+        proposal_info = ProposalInfo(id, proposer, proposer_name, description, type, value, start, expired,
+                                     _STATUS, _VOTER)
         self._proposal_list[id] = proposal_info.to_bytes()
 
     def cancel_proposal(self, id: bytes, proposer: 'Address', current_block_height: int) -> None:
@@ -118,14 +122,16 @@ class NetworkProposal:
         proposal_info.status = NetworkProposalStatus.CANCELED
         self._proposal_list[id] = proposal_info.to_bytes()
 
-    def vote_proposal(self, id: bytes, voter: 'Address', vote_type: int, current_block_height: int,
-                      main_preps: list) -> (bool, int, dict):
+    def vote_proposal(self, id: bytes, voter_address: 'Address', vote_type: int, current_block_height: int,
+                      tx_hash: bytes, timestamp: int, main_preps: list) -> (bool, int, dict):
         """ Vote for the proposal - agree or disagree
         
         :param id: transaction hash to vote to the proposal
-        :param voter: voter address
+        :param voter_address: voter address
         :param vote_type: votes type - agree(NetworkProposalVote.AGREE, 1) or disagree(NetworkProposalVote.DISAGREE, 0)
         :param current_block_height: current block height
+        :param tx_hash: generated transaction hash of this transaction to vote the proposal
+        :param timestamp: timestamp of this transaction to vote the proposal
         :param main_preps: main preps list
         :return: bool - True means success for voting and False means failure for voting
         """
@@ -143,19 +149,22 @@ class NetworkProposal:
         _VOTE_TYPE_IN_STR = "agree" if vote_type == NetworkProposalVote.AGREE else "disagree"
         _NO_VOTE_IN_STR = "noVote"
 
-        if str(voter) in proposal_info.voter["agree"]["address"] + proposal_info.voter["disagree"]["address"]:
+        addresses_of_voters_agreeing_or_disagreeing = \
+            [voter["address"] for voter in proposal_info.vote["agree"]["list"]] \
+            + [voter["address"] for voter in proposal_info.vote["disagree"]["list"]]
+
+        if str(voter_address) in addresses_of_voters_agreeing_or_disagreeing:
             revert("Already voted")
 
-        delegated = 0
         for main_prep in main_preps:
-            if main_prep.address == voter:
-                delegated = main_prep.delegated
+            if main_prep.address == voter_address:
+                voter_in_dict = self._generate_voter_in_dict(tx_hash, timestamp, main_prep)
 
-        proposal_info.voter[_VOTE_TYPE_IN_STR]["address"].append(str(voter))
-        proposal_info.voter[_VOTE_TYPE_IN_STR]["amount"] += delegated
+        proposal_info.vote[_VOTE_TYPE_IN_STR]["list"].append(voter_in_dict)
+        proposal_info.vote[_VOTE_TYPE_IN_STR]["amount"] += voter_in_dict["amount"]
 
-        proposal_info.voter[_NO_VOTE_IN_STR]["address"].remove(str(voter))
-        proposal_info.voter[_NO_VOTE_IN_STR]["amount"] -= delegated
+        proposal_info.vote[_NO_VOTE_IN_STR]["list"].remove(voter_in_dict["address"])
+        proposal_info.vote[_NO_VOTE_IN_STR]["amount"] -= voter_in_dict["amount"]
 
         # set status
         approved = False
@@ -187,23 +196,7 @@ class NetworkProposal:
             if proposal_info.status == NetworkProposalStatus.VOTING:
                 proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
-        for vote_type in ("agree", "disagree", "noVote"):
-            proposal_info.voter[vote_type]["amount"] = hex(proposal_info.voter[vote_type]["amount"])
-
-        result = {
-            "proposer": proposal_info.proposer,
-            "id": proposal_info.id,
-            "status": hex(proposal_info.status),
-            "startBlockHeight": hex(proposal_info.start_block_height),
-            "endBlockHeight": hex(proposal_info.end_block_height),
-            "voter": proposal_info.voter,
-            "contents": {
-                "description": proposal_info.description,
-                "type": hex(proposal_info.type),
-                "value": proposal_info.value
-            }
-        }
-
+        result = self._generate_proposal_info_in_dict_for_get_proposal(proposal_info)
         return result
 
     def get_proposal_list(self, current_block_height: int, type: int = None, status: int = None) -> dict:
@@ -228,14 +221,7 @@ class NetworkProposal:
             if status is not None and proposal_info.status != status:
                 continue
 
-            proposal_info_in_dict = {
-                "id": proposal_info.id,
-                "description": proposal_info.description,
-                "type": hex(proposal_info.type),
-                "status": hex(proposal_info.status),
-                "startBlockHeight": hex(proposal_info.start_block_height),
-                "endBlockHeight": hex(proposal_info.end_block_height)
-            }
+            proposal_info_in_dict = self._generate_proposal_info_in_dict_for_get_proposal_list(proposal_info)
             proposals.append(proposal_info_in_dict)
 
         result = {
@@ -270,7 +256,8 @@ class NetworkProposal:
         address = Address.from_string(value['address'])
         type_ = int(value['type'], 16)
 
-        return isinstance(address, Address) and address.is_contract \
+        return isinstance(address, Address) \
+               and address.is_contract \
                and MaliciousScoreType.MIN <= type_ <= MaliciousScoreType.MAX
 
     @staticmethod
@@ -289,7 +276,6 @@ class NetworkProposal:
     @staticmethod
     def _validate_step_price_proposal(value: dict) -> bool:
         value = int(value['value'], 16)
-
         return isinstance(value, int)
 
     def _check_registered_proposal(self, id: bytes) -> bool:
@@ -309,36 +295,112 @@ class NetworkProposal:
         """
         total_delegated = 0
         for vote_type_in_str in ("agree", "disagree", "noVote"):
-            total_delegated += proposal_info.voter[vote_type_in_str]["amount"]
+            total_delegated += proposal_info.vote[vote_type_in_str]["amount"]
 
-        preps_to_vote = proposal_info.voter["agree" if vote_type == NetworkProposalVote.AGREE else "disagree"]
-        addresses_of_preps_to_vote: list = preps_to_vote["address"]
+        preps_to_vote = proposal_info.vote["agree" if vote_type == NetworkProposalVote.AGREE else "disagree"]
+        voters_of_preps_to_vote: list = preps_to_vote["list"]
         delegated_of_preps_to_vote: int = preps_to_vote["amount"]
         try:
             if vote_type == NetworkProposalVote.AGREE:
-                return len(addresses_of_preps_to_vote) >= ApproveCondition.APPROVE_VOTE_COUNT \
+                return len(voters_of_preps_to_vote) >= ApproveCondition.APPROVE_VOTE_COUNT \
                        and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.APPROVE_DELEGATION_RATE
             else:
-                return len(addresses_of_preps_to_vote) >= ApproveCondition.DISAPPROVE_VOTE_COUNT \
+                return len(voters_of_preps_to_vote) >= ApproveCondition.DISAPPROVE_VOTE_COUNT \
                        and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.DISAPPROVE_DELEGATION_RATE
         except ZeroDivisionError:
             return False
+
+    @staticmethod
+    def _generate_proposal_info_in_dict_for_get_proposal_list(proposal_info: 'ProposalInfo') -> dict:
+        """ Generate proposal info in dict for `getProposalList` method
+
+        :param proposal_info: ProposalInfo instance
+        :return: proposal info in dict where format is set to the `getProposalList` method
+        """
+        vote_value = {}
+        for vote_type in ("agree", "disagree", "noVote"):
+            vote_value[vote_type] = {}
+            vote_value[vote_type]["count"] = hex(len(proposal_info.vote[vote_type]["list"]))
+            vote_value[vote_type]["amount"] = hex(proposal_info.vote[vote_type]["amount"])
+
+        proposal_info_in_dict = {
+            "id": '0x' + bytes.hex(proposal_info.id),
+            "proposerName": proposal_info.proposer_name,
+            "description": proposal_info.description,
+            "type": hex(proposal_info.type),
+            "status": hex(proposal_info.status),
+            "startBlockHeight": hex(proposal_info.start_block_height),
+            "endBlockHeight": hex(proposal_info.end_block_height),
+            "vote": vote_value
+        }
+        return proposal_info_in_dict
+
+    @staticmethod
+    def _generate_proposal_info_in_dict_for_get_proposal(proposal_info: 'ProposalInfo') -> dict:
+        """ Generate proposal info in dict for `getProposal` method
+
+        :param proposal_info: ProposalInfo instance
+        :return: proposal info in dict where format is set to the `getProposal` method
+        """
+        for vote_type in ("agree", "disagree", "noVote"):
+            proposal_info.vote[vote_type]["amount"] = hex(proposal_info.vote[vote_type]["amount"])
+
+            if vote_type in ("agree", "disagree") and len(proposal_info.vote[vote_type]) > 0:
+                for voter_in_dict in proposal_info.vote[vote_type]["list"]:
+                    voter_in_dict["timestamp"] = hex(voter_in_dict["timestamp"])
+                    voter_in_dict["amount"] = hex(voter_in_dict["amount"])
+
+        proposal_info_in_dict = {
+            "proposer": str(proposal_info.proposer),
+            "proposerName": proposal_info.proposer_name,
+            "id": '0x' + bytes.hex(proposal_info.id),
+            "status": hex(proposal_info.status),
+            "startBlockHeight": hex(proposal_info.start_block_height),
+            "endBlockHeight": hex(proposal_info.end_block_height),
+            "vote": proposal_info.vote,
+            "contents": {
+                "description": proposal_info.description,
+                "type": hex(proposal_info.type),
+                "value": proposal_info.value
+            }
+        }
+        return proposal_info_in_dict
+
+    @staticmethod
+    def _generate_voter_in_dict(id: bytes, timestamp: int, prep: 'Prep') -> dict:
+        """ Generate one of items in dict of voter list
+
+        :param id: transaction hash generated for the voter to vote for the proposal
+        :param timestamp: timestamp
+        :param prep: 'Prep' having attributes of prep information like address, name, delegated and etc.
+        :return: voter information in dict; one of the items in dict for voter list.
+                 A data type is either integer or string in order not to be converted but to JSON dumps directly
+        """
+        voter_in_dict = {
+            "id": '0x' + bytes.hex(id),
+            "timestamp": timestamp,
+            "address": str(prep.address),
+            "name": prep.name,
+            "amount": prep.delegated
+        }
+        return voter_in_dict
 
 
 class ProposalInfo:
     """ ProposalInfo Class including proposal information"""
 
-    def __init__(self, id: bytes, proposer: 'Address', description: str, type: int, value: dict,
-                 start_block_height: int, end_block_height: int, status: int, voter: dict):
+    def __init__(self, id: bytes, proposer: 'Address', proposer_name: str, description: str, type: int, value: dict,
+                 start_block_height: int, end_block_height: int, status: int, vote: dict):
         self.id = id
         self.proposer = proposer
+        self.proposer_name = proposer_name
         self.description = description
         self.type = type
         self.value = value  # value dict has str value
         self.start_block_height = start_block_height
         self.end_block_height = end_block_height
         self.status = status
-        self.voter = voter
+        self.vote = vote
 
     def to_bytes(self) -> bytes:
         """ Convert ProposalInfo to bytes
