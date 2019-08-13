@@ -48,7 +48,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             next_term = int(iiss_info.get('nextCalculation', 0), 16)
         current_block = self._get_block_height()
 
-        if (next_term - current_block) < remain_blocks:
+        if (next_term - current_block) < remain_blocks + 1:
             self._make_blocks(next_term)
 
     def _make_blocks(self, to: int):
