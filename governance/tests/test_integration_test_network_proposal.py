@@ -1,9 +1,9 @@
-import os
 import json
+import os
 from typing import Dict, Union, List
 
-from iconsdk.builder.transaction_builder import DeployTransactionBuilder, CallTransactionBuilder, TransactionBuilder
 from iconsdk.builder.call_builder import CallBuilder
+from iconsdk.builder.transaction_builder import DeployTransactionBuilder, CallTransactionBuilder, TransactionBuilder
 from iconsdk.icon_service import IconService
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.providers.http_provider import HTTPProvider
@@ -13,7 +13,8 @@ from iconservice.base.type_converter_templates import ConstantKeys
 from iconservice.icon_constant import REV_IISS, REV_DECENTRALIZATION, PRepStatus
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 
-from governance.network_proposal import NetworkProposalType, NetworkProposalVote, NetworkProposalStatus, MaliciousScoreType
+from governance.network_proposal import NetworkProposalType, NetworkProposalVote, NetworkProposalStatus, \
+    MaliciousScoreType
 
 DIR_PATH = os.path.abspath(os.path.dirname(__file__))
 SCORE_PROJECT = os.path.abspath(os.path.join(DIR_PATH, '..'))
@@ -43,6 +44,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def _reset_block_height(self, remain_blocks):
         iiss_info = self._get_iiss_info()
+
         next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
         if next_term == 0:
             next_term = int(iiss_info.get('nextCalculation', 0), 16)
@@ -214,11 +216,11 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     @staticmethod
     def _create_delegation_tx(key_wallet: 'KeyWallet',
-                         delegations: List[dict],
-                         value: int = 0,
-                         step_limit: int = DEFAULT_STEP_LIMIT,
-                         nid: int = DEFAULT_NID,
-                         nonce: int = 0) -> 'SignedTransaction':
+                              delegations: List[dict],
+                              value: int = 0,
+                              step_limit: int = DEFAULT_STEP_LIMIT,
+                              nid: int = DEFAULT_NID,
+                              nonce: int = 0) -> 'SignedTransaction':
         transaction = CallTransactionBuilder(). \
             from_(key_wallet.get_address()). \
             to(SCORE_INSTALL_ADDRESS). \
@@ -263,12 +265,12 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     @staticmethod
     def _create_vote_proposal_tx(key_wallet: 'KeyWallet',
-                                     id_: str,
-                                     vote: int,
-                                     value: int = 0,
-                                     step_limit: int = DEFAULT_STEP_LIMIT,
-                                     nid: int = DEFAULT_NID,
-                                     nonce: int = 0) -> 'SignedTransaction':
+                                 id_: str,
+                                 vote: int,
+                                 value: int = 0,
+                                 step_limit: int = DEFAULT_STEP_LIMIT,
+                                 nid: int = DEFAULT_NID,
+                                 nonce: int = 0) -> 'SignedTransaction':
         params = {
             "id": id_,
             "vote": hex(vote)
@@ -381,8 +383,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
             tx_list = self._create_register_prep_tx_list(preps)
             response = self.process_transaction_bulk(tx_list, self.icon_service)
             for i, resp in enumerate(response):
-                self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
-                self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+                self.assertTrue('status' in resp,
+                                f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+                self.assertEqual(1, resp['status'],
+                                 f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
         # stake and delegate
         # min delegation amount = 0.02 * total supply
@@ -442,13 +446,14 @@ class TestNetworkProposal(IconIntegrateTestBase):
         tx = self._create_vote_proposal_tx(proposer, np_id, NetworkProposalVote.AGREE)
         self.process_transaction(tx, self.icon_service)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(proposer.get_address() in response['voter']['agree']['address'])
+        self.assertTrue(proposer.get_address() in response['vote']['agree']['list'][0]["address"])
 
         # vote - disagree
         tx = self._create_vote_proposal_tx(self._wallet_array[0], np_id, NetworkProposalVote.DISAGREE)
         self.process_transaction(tx, self.icon_service)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[0].get_address() in response['voter']['disagree']['address'], response)
+        self.assertTrue(self._wallet_array[0].get_address() in response['vote']['disagree']['list'][0]["address"],
+                        response)
 
         # cancel proposal
         tx = self._create_cancel_proposal_tx(proposer, np_id)
@@ -462,7 +467,8 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(0, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertFalse(self._wallet_array[1].get_address() in response['voter']['agree']['address'], response)
+        self.assertFalse(self._wallet_array[1].get_address() in response['vote']['agree']['list'][0]["address"],
+                         response)
 
     def test_020_approve_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
@@ -528,7 +534,8 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(1, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[14].get_address() in response['voter']['agree']['address'], response)
+        self.assertTrue(self._wallet_array[14].get_address() in response['vote']['agree']['list'][-1]["address"],
+                        response)
 
     def test_030_disapprove_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
@@ -594,7 +601,8 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue("status" in response, response)
         self.assertEqual(1, response['status'], response)
         response = self.get_network_proposal(np_id)
-        self.assertTrue(self._wallet_array[7].get_address() in response['voter']['agree']['address'], response)
+        self.assertTrue(self._wallet_array[7].get_address() in response['vote']['agree']['list'][-1]["address"],
+                        response)
 
     def test_040_revision_update(self):
         # go to next P-Rep term for main P-Rep election

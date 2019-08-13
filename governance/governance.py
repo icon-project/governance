@@ -731,6 +731,8 @@ class Governance(IconSystemScoreBase):
         approved, proposal_type, value = self._network_proposal.vote_proposal(id, self.msg.sender,
                                                                               vote,
                                                                               self.block_height,
+                                                                              self.tx.hash,
+                                                                              self.tx.timestamp,
                                                                               main_preps)
 
         self.VoteNetworkProposal(id, vote, self.msg.sender)
