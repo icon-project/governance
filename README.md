@@ -717,7 +717,7 @@ None
     "result": {
         "id" : "0xb903239f8543d0..",
         "proposer" : "hxbe258ceb872e08851f1f59694dac2558708ece11",  
-      	"proposerName" : "Proposer1",
+      	"proposerName" : "P-Rep A",
       	"status" : "0x0",
         "startBlockHeight" : "0x1",
         "endBlockHeight" : "0x65",
@@ -727,7 +727,7 @@ None
                     "id": "0xb903239f854..",
                     "timestamp": "0x563a6cf330136",
                     "address": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
-                    "name": "Proposal2",
+                    "name": "P-Rep B",
                     "amount": "0x1"
                 }, .. ],
                 "amount": "0x12345"
@@ -736,8 +736,8 @@ None
                 "list": [{
                     "id": "0xa803239f854..",
                     "timestamp": "0x563a6cf330136",
-                    "address": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
-                    "name": "Proposal3",
+                    "address": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                    "name": "P-Rep C",
                     "amount": "0x1"
                 }, .. ],
                 "amount": "0x123"
@@ -748,8 +748,8 @@ None
             },
         },
         "contents": {
-          	"title": "Disqualify P-Rep A",
-            "description": "P-Rep A does not maintain node",
+            "title": "Disqualify P-Rep C",
+            "description": "P-Rep C does not maintain node",
             "type": "0x3",
             "value": {
                 "address": "hxbe258ceb872e08851f1f59694dac2558708ece11"
@@ -811,7 +811,7 @@ None
          {  
             "id":"0xb903239f8543..",
             "proposer":"hxbe258ceb872e08851f1f59694dac2558708ece11",
-            "proposerName":"Proposer1",
+            "proposerName":"P-Rep A",
             "status":"0x0",
             "startBlockHeight":"0x1",
             "endBlockHeight":"0x65",
@@ -830,8 +830,8 @@ None
                }
             },
             "contents":{  
-               "title":"Disqualify P-Rep A",
-               "description":"P-Rep A does not maintain node",
+               "title":"Disqualify P-Rep C",
+               "description":"P-Rep C does not maintain node",
                "type":"0x3",
                "value":{  
                   "address":"hxbe258ceb872e08851f1f59694dac2558708ece11"
