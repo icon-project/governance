@@ -69,7 +69,9 @@ def patch_several(*decorate_args):
             ret = func(*args, **kwargs)
             stop_patches(*decorate_args)
             return ret
+
         return wrapper
+
     return decorate
 
 
@@ -77,7 +79,7 @@ class Prep:
     def __init__(self, address: 'Address', delegated: int):
         self.address = address
         self.delegated = delegated
-        self.name = "prep_name_" + str(address)
+        self.name = "name_" + str(address)
 
 
 class TestUnitNetworkProposal(unittest.TestCase):
@@ -101,6 +103,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             "id": proposal_info.id,
             "proposer": str(proposal_info.proposer),
             "proposer_name": proposal_info.proposer_name,
+            "title": proposal_info.title,
             "description": proposal_info.description,
             "type": proposal_info.type,
             "value": proposal_info.value,
@@ -117,7 +120,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                    PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
                    PATCHER_VALIDATE_STEP_PRICE_PROPOSAL)
     def test_validate_proposal(self):
-        value_of_type_0 = {"text": "text"}
+        value_of_type_0 = {"value": "text"}
         value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
         value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
         value_of_type_3 = {"address": str(create_address())}
@@ -144,7 +147,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
         assert self.network_proposal._validate_step_price_proposal.called and return_value
 
     def test_validate_text_proposal(self):
-        value_of_type_0 = {"text": "text"}
+        value_of_type_0 = {"value": "text"}
         assert self.network_proposal._validate_text_proposal(value_of_type_0)
 
     def test_validate_revision_proposal(self):
@@ -282,7 +285,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             self.assertEqual(result, expected_value)
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
-    def test_get_proposal_list_during_prep_period(self):
+    def test_get_proposals_during_prep_period(self):
         expected_proposal_list = {
             "proposals": []
         }
@@ -292,12 +295,12 @@ class TestUnitNetworkProposal(unittest.TestCase):
             proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
                 NetworkProposalStatus.VOTING, voter)
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
-            proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposal_list(
+            proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposals(
                 proposal_info)
             expected_proposal_list["proposals"].append(proposal_info_in_dict)
 
         current_block_height = proposal_info.end_block_height - 1
-        result = self.network_proposal.get_proposal_list(current_block_height)
+        result = self.network_proposal.get_proposals(current_block_height)
         self.assertEqual(expected_proposal_list, result)
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
@@ -314,12 +317,12 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
             buf_proposal_info = deepcopy(proposal_info)
             buf_proposal_info.status = NetworkProposalStatus.DISAPPROVED
-            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposal_list(
+            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposals(
                 buf_proposal_info)
             expected_proposal_list["proposals"].append(buf_proposal_info_in_dict)
 
             current_block_height = proposal_info.end_block_height + 1
-            result = self.network_proposal.get_proposal_list(current_block_height)
+            result = self.network_proposal.get_proposals(current_block_height)
 
             self.assertEqual(expected_proposal_list, result)
 
@@ -338,12 +341,12 @@ class TestUnitNetworkProposal(unittest.TestCase):
                 NetworkProposalStatus.VOTING, voter, buf_network_proposal_type[i])
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
 
-            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposal_list(
+            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposals(
                 proposal_info)
             expected_proposal_list["proposals"].append(buf_proposal_info_in_dict)
 
             current_block_height = proposal_info.end_block_height - 1
-            result = self.network_proposal.get_proposal_list(current_block_height, buf_network_proposal_type[i])
+            result = self.network_proposal.get_proposals(current_block_height, buf_network_proposal_type[i])
             self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
             self.assertEqual(expected_proposal_list, result)
 
@@ -366,12 +369,12 @@ class TestUnitNetworkProposal(unittest.TestCase):
                 buf_network_proposal_status[i], voter, buf_network_proposal_type[i])
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
 
-            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposal_list(
+            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposals(
                 proposal_info)
             expected_proposal_list["proposals"].append(buf_proposal_info_in_dict)
 
             current_block_height = proposal_info.end_block_height - 1
-            result = self.network_proposal.get_proposal_list(current_block_height, None, buf_network_proposal_status[i])
+            result = self.network_proposal.get_proposals(current_block_height, None, buf_network_proposal_status[i])
             self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
             self.assertEqual(expected_proposal_list, result)
 
@@ -390,15 +393,15 @@ class TestUnitNetworkProposal(unittest.TestCase):
                 NetworkProposalStatus.VOTING, voter, buf_network_proposal_type[i])
             self.network_proposal._proposal_list_keys.append(proposal_info.id)
 
-            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposal_list(
+            buf_proposal_info_in_dict = self.network_proposal._generate_proposal_info_in_dict_for_get_proposals(
                 proposal_info)
 
             if proposal_info.type == NetworkProposalType.REVISION:
                 expected_proposal_list["proposals"].append(buf_proposal_info_in_dict)
 
         current_block_height = proposal_info.end_block_height - 1
-        result = self.network_proposal.get_proposal_list(current_block_height, NetworkProposalType.REVISION,
-                                                         NetworkProposalStatus.VOTING)
+        result = self.network_proposal.get_proposals(current_block_height, NetworkProposalType.REVISION,
+                                                     NetworkProposalStatus.VOTING)
         self.assertEqual(2, len(result['proposals']))
         self.assertEqual(5, len(self.network_proposal._proposal_list))
         self.assertEqual(expected_proposal_list, result)
@@ -427,16 +430,17 @@ class TestUnitNetworkProposal(unittest.TestCase):
         with patch.object(self.network_proposal, '_validate_proposal', return_value=False):
             self.assertRaisesRegex(IconScoreException, "Invalid parameter", self.network_proposal.register_proposal,
                                    proposal_info.id, proposal_info.proposer, proposal_info.start_block_height,
-                                   proposal_info.end_block_height,
+                                   proposal_info.end_block_height, proposal_info.title,
                                    proposal_info.description, proposal_info.type, proposal_info.value, [])
 
+        voter = self._generate_vote(0, 0, 0, 0, DEFAULT_DELEGATED * COUNT_OF_MAIN_PREPS)
         for i in range(5):
-            voter = self._generate_vote(0, 0, 0, 0, DEFAULT_DELEGATED * COUNT_OF_MAIN_PREPS)
             proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
-            main_preps = [Prep(address, DEFAULT_DELEGATED) for address in voter["noVote"]["list"]]
+            voter["noVote"]["list"][i] = str(proposal_info.proposer)
+            main_preps = [Prep(Address.from_string(address), DEFAULT_DELEGATED) for address in voter["noVote"]["list"]]
             self.network_proposal.register_proposal(proposal_info.id, proposal_info.proposer,
                                                     proposal_info.start_block_height, proposal_info.end_block_height,
-                                                    proposal_info.description,
+                                                    proposal_info.title, proposal_info.description,
                                                     proposal_info.type, proposal_info.value,
                                                     main_preps)
             self.assertEqual(i + 1, len(self.network_proposal._proposal_list))
@@ -670,14 +674,15 @@ class TestUnitNetworkProposal(unittest.TestCase):
             -> ('ProposalInfo', bytes):
         id = create_tx_hash()
         proposer = create_address()
-        proposer_name = ""
-        description = "Disqualify P-Rep A; P-Rep A does not maintain node"
+        proposer_name = "name_" + str(proposer)
+        title = "title_" + bytes.hex(id)
+        description = "description_" + bytes.hex(id)
         value = {
-            "address": bytes.hex(Address.to_bytes(create_address()))
+            "address": str(create_address())
         }
         start_block_height = 1
-        end_block_height = 10
-        proposal_info = ProposalInfo(id, proposer, proposer_name, description, type, value, start_block_height,
+        end_block_height = start_block_height + 9
+        proposal_info = ProposalInfo(id, proposer, proposer_name, title, description, type, value, start_block_height,
                                      end_block_height, status, vote)
         buf_proposal_info = deepcopy(proposal_info)
         return proposal_info, buf_proposal_info.to_bytes()

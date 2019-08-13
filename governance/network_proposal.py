@@ -52,7 +52,7 @@ class NetworkProposal:
         ]
 
     def register_proposal(self, id: bytes, proposer: 'Address', start: int, expired: int,
-                          description: str, type: int, value: dict, main_preps: list) -> None:
+                          title: str, description: str, type: int, value: dict, main_preps: list) -> None:
         """ Put transaction hash and info of the proposal to db
 
         :param id: transaction hash to register the proposal
@@ -60,6 +60,7 @@ class NetworkProposal:
         :param start: start block height of the proposal
         :param expired: expire block height of the proposal
         :param description: description of the proposal
+        :param title: title of the proposal
         :param type: type of the proposal
         :param value: specific value of the proposal
         :param main_preps: main preps in list, List['PRepInfo']
@@ -94,7 +95,7 @@ class NetworkProposal:
             }
         }
 
-        proposal_info = ProposalInfo(id, proposer, proposer_name, description, type, value, start, expired,
+        proposal_info = ProposalInfo(id, proposer, proposer_name, title, description, type, value, start, expired,
                                      _STATUS, _VOTER)
         self._proposal_list[id] = proposal_info.to_bytes()
 
@@ -199,7 +200,7 @@ class NetworkProposal:
         result = self._generate_proposal_info_in_dict_for_get_proposal(proposal_info)
         return result
 
-    def get_proposal_list(self, current_block_height: int, type: int = None, status: int = None) -> dict:
+    def get_proposals(self, current_block_height: int, type: int = None, status: int = None) -> dict:
         """ Get proposal list to be filtered by type and status
 
         :param current_block_height: current block height
@@ -221,7 +222,7 @@ class NetworkProposal:
             if status is not None and proposal_info.status != status:
                 continue
 
-            proposal_info_in_dict = self._generate_proposal_info_in_dict_for_get_proposal_list(proposal_info)
+            proposal_info_in_dict = self._generate_proposal_info_in_dict_for_get_proposals(proposal_info)
             proposals.append(proposal_info_in_dict)
 
         result = {
@@ -241,7 +242,7 @@ class NetworkProposal:
 
     @staticmethod
     def _validate_text_proposal(value: dict) -> bool:
-        text = value['text']
+        text = value['value']
         return isinstance(text, str)
 
     @staticmethod
@@ -311,32 +312,46 @@ class NetworkProposal:
             return False
 
     @staticmethod
-    def _generate_proposal_info_in_dict_for_get_proposal_list(proposal_info: 'ProposalInfo') -> dict:
-        """ Generate proposal info in dict for `getProposalList` method
+    def _generate_common_proposal_info_in_dict(proposal_info: 'ProposalInfo') -> dict:
+        """ Generate common proposal info in dict for both `getProposal` and `getProposals`
 
         :param proposal_info: ProposalInfo instance
-        :return: proposal info in dict where format is set to the `getProposalList` method
+        :return: proposal info in dict where format is used to both `getProposal` and `getProposals` except for 'vote' item
         """
-        vote_value = {}
-        for vote_type in ("agree", "disagree", "noVote"):
-            vote_value[vote_type] = {}
-            vote_value[vote_type]["count"] = hex(len(proposal_info.vote[vote_type]["list"]))
-            vote_value[vote_type]["amount"] = hex(proposal_info.vote[vote_type]["amount"])
-
         proposal_info_in_dict = {
             "id": '0x' + bytes.hex(proposal_info.id),
+            "proposer": str(proposal_info.proposer),
             "proposerName": proposal_info.proposer_name,
-            "description": proposal_info.description,
-            "type": hex(proposal_info.type),
             "status": hex(proposal_info.status),
             "startBlockHeight": hex(proposal_info.start_block_height),
             "endBlockHeight": hex(proposal_info.end_block_height),
-            "vote": vote_value
+            "contents": {
+                "title": proposal_info.title,
+                "description": proposal_info.description,
+                "type": hex(proposal_info.type),
+                "value": proposal_info.value
+            }
         }
         return proposal_info_in_dict
 
-    @staticmethod
-    def _generate_proposal_info_in_dict_for_get_proposal(proposal_info: 'ProposalInfo') -> dict:
+    def _generate_proposal_info_in_dict_for_get_proposals(self, proposal_info: 'ProposalInfo') -> dict:
+        """ Generate proposal info in dict for `getProposals` method
+
+        :param proposal_info: ProposalInfo instance
+        :return: proposal info in dict where format is set to the `getProposals` method
+        """
+        vote_value = {}
+        for vote_type in ("agree", "disagree", "noVote"):
+            vote_value[vote_type] = {
+                "count": hex(len(proposal_info.vote[vote_type]["list"])),
+                "amount": hex(proposal_info.vote[vote_type]["amount"])
+            }
+
+        proposal_info_in_dict = self._generate_common_proposal_info_in_dict(proposal_info)
+        proposal_info_in_dict["vote"] = vote_value
+        return proposal_info_in_dict
+
+    def _generate_proposal_info_in_dict_for_get_proposal(self, proposal_info: 'ProposalInfo') -> dict:
         """ Generate proposal info in dict for `getProposal` method
 
         :param proposal_info: ProposalInfo instance
@@ -350,20 +365,8 @@ class NetworkProposal:
                     voter_in_dict["timestamp"] = hex(voter_in_dict["timestamp"])
                     voter_in_dict["amount"] = hex(voter_in_dict["amount"])
 
-        proposal_info_in_dict = {
-            "proposer": str(proposal_info.proposer),
-            "proposerName": proposal_info.proposer_name,
-            "id": '0x' + bytes.hex(proposal_info.id),
-            "status": hex(proposal_info.status),
-            "startBlockHeight": hex(proposal_info.start_block_height),
-            "endBlockHeight": hex(proposal_info.end_block_height),
-            "vote": proposal_info.vote,
-            "contents": {
-                "description": proposal_info.description,
-                "type": hex(proposal_info.type),
-                "value": proposal_info.value
-            }
-        }
+        proposal_info_in_dict = self._generate_common_proposal_info_in_dict(proposal_info)
+        proposal_info_in_dict["vote"] = proposal_info.vote
         return proposal_info_in_dict
 
     @staticmethod
@@ -389,11 +392,12 @@ class NetworkProposal:
 class ProposalInfo:
     """ ProposalInfo Class including proposal information"""
 
-    def __init__(self, id: bytes, proposer: 'Address', proposer_name: str, description: str, type: int, value: dict,
-                 start_block_height: int, end_block_height: int, status: int, vote: dict):
+    def __init__(self, id: bytes, proposer: 'Address', proposer_name: str, title: str, description: str, type: int,
+                 value: dict, start_block_height: int, end_block_height: int, status: int, vote: dict):
         self.id = id
         self.proposer = proposer
         self.proposer_name = proposer_name
+        self.title = title
         self.description = description
         self.type = type
         self.value = value  # value dict has str value

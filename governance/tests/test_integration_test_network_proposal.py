@@ -237,6 +237,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     @staticmethod
     def _create_register_proposal_tx(key_wallet: 'KeyWallet',
+                                     title: str,
                                      desc: str,
                                      type: int,
                                      value_dict: dict,
@@ -245,6 +246,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
                                      nid: int = DEFAULT_NID,
                                      nonce: int = 0) -> 'SignedTransaction':
         params = {
+            "title": title,
             "description": desc,
             "type": hex(type),
             "value": "0x" + bytes.hex(json.dumps(value_dict).encode())
@@ -426,9 +428,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'test proposal'
         value = 'hello world'
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.TEXT, {"text": value})
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.TEXT, {"value": value})
         response = self.process_transaction(tx, self.icon_service)
         self.assertTrue('status' in response and 1 == response['status'],
                         f"TX:\n{tx.signed_transaction_dict}\nTX_RESULT:\n{response}")
@@ -440,7 +443,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual(np_id, response['id'], response)
         self.assertEqual(desc, response['contents']['description'], response)
         self.assertEqual(hex(NetworkProposalType.TEXT), response['contents']['type'], response)
-        self.assertEqual(value, response['contents']['value']['text'], response)
+        self.assertEqual(value, response['contents']['value']['value'], response)
 
         # vote - agree
         tx = self._create_vote_proposal_tx(proposer, np_id, NetworkProposalVote.AGREE)
@@ -476,9 +479,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'test proposal'
         value = 'hello world'
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.TEXT, {"text": value})
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.TEXT, {"value": value})
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -504,9 +508,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'test proposal'
         value = 'hello world'
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.TEXT, {"text": value})
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.TEXT, {"value": value})
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -543,9 +548,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'test proposal'
         value = 'hello world'
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.TEXT, {"text": value})
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.TEXT, {"value": value})
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -571,9 +577,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'test proposal'
         value = 'hello world'
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.TEXT, {"text": value})
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.TEXT, {"value": value})
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -610,11 +617,12 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'revision update network proposal'
         code = 10
         name = "for revision update network proposal test"
         value = {"code": hex(code), "name": name}
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.REVISION, value)
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.REVISION, value)
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -640,10 +648,11 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal - freeze SCORE
         proposer = self._test1
+        title = "test title"
         desc = 'Malicious SCORE network proposal'
         address = f"cxa23{'0' * 37}"
         value = {"address": address, "type": hex(MaliciousScoreType.FREEZE)}
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.MALICIOUS_SCORE, value)
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.MALICIOUS_SCORE, value)
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -673,9 +682,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal - unfreeze SCORE
         proposer = self._test1
+        title = "test title"
         desc = 'Unfreeze malicious SCORE network proposal'
         value = {"address": address, "type": hex(MaliciousScoreType.UNFREEZE)}
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.MALICIOUS_SCORE, value)
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.MALICIOUS_SCORE, value)
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -729,9 +739,10 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal - P-Rep disqualification
         proposer = self._test1
+        title = "test title"
         desc = 'P-Rep disqualification network proposal'
         value = {"address": new_prep.get_address()}
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.PREP_DISQUALIFICATION, value)
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.PREP_DISQUALIFICATION, value)
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
@@ -762,10 +773,11 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # register proposal
         proposer = self._test1
+        title = "test title"
         desc = 'step price network proposal'
         step_price = 1000
         value = {"value": hex(step_price)}
-        tx = self._create_register_proposal_tx(proposer, desc, NetworkProposalType.STEP_PRICE, value)
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.STEP_PRICE, value)
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
