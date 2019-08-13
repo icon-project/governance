@@ -153,7 +153,7 @@ class Governance(IconSystemScoreBase):
         pass
 
     @eventlog(indexed=0)
-    def RegisterNetworkProposal(self, description: str, type: int, value: bytes, proposer: Address):
+    def RegisterNetworkProposal(self, title: str, description: str, type: int, value: bytes, proposer: Address):
         pass
 
     @eventlog(indexed=0)
@@ -677,9 +677,10 @@ class Governance(IconSystemScoreBase):
         return {'code': self._revision_code.get(), 'name': self._revision_name.get()}
 
     @external
-    def registerProposal(self, description: str, type: int, value: bytes):
+    def registerProposal(self, title: str, description: str, type: int, value: bytes):
         """ Register a Proposal with information like description, type and value by main prep
 
+        :param title: title of the proposal
         :param description: description of the proposal
         :param type: proposal type
         :param value: encoded value
@@ -695,9 +696,9 @@ class Governance(IconSystemScoreBase):
 
         value_in_dict = json_loads(value.decode())
         self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
-                                                 description, type, value_in_dict, main_preps)
+                                                 title, description, type, value_in_dict, main_preps)
 
-        self.RegisterNetworkProposal(description, type, value, self.msg.sender)
+        self.RegisterNetworkProposal(title, description, type, value, self.msg.sender)
 
     @external
     def cancelProposal(self, id: bytes):
@@ -763,14 +764,14 @@ class Governance(IconSystemScoreBase):
         return proposal_info
 
     @external(readonly=True)
-    def getProposalList(self, type: int = None, status: int = None) -> dict:
+    def getProposals(self, type: int = None, status: int = None) -> dict:
         """ Get all of proposals in list
 
         :param type: type of network proposal to filter (optional)
         :param status: status of network proposal to filter (optional)
         :return: proposal list in dict
         """
-        return self._network_proposal.get_proposal_list(self.block_height, type, status)
+        return self._network_proposal.get_proposals(self.block_height, type, status)
 
     def _check_main_prep(self, address: 'Address', main_preps: list) -> bool:
         """ Check if the address is main prep
