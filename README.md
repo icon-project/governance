@@ -58,7 +58,7 @@ NAME: Not an empty string
     * [getServiceConfig](#getserviceconfig)
     * [getRevision](#getrevision)
     * [getProposal](#getproposal)
-    * [getProposalList](#getproposallist)
+    * [getProposals](#getproposals)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
@@ -715,27 +715,41 @@ None
     "jsonrpc": "2.0",
     "id": 100,
     "result": {
-        "proposer" : "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "id" : "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-        "status" : "0x0",
+        "id" : "0xb903239f8543d0..",
+        "proposer" : "hxbe258ceb872e08851f1f59694dac2558708ece11",  
+      	"proposerName" : "Proposer1",
+      	"status" : "0x0",
         "startBlockHeight" : "0x1",
         "endBlockHeight" : "0x65",
-        "voter": {
+        "vote": {
             "agree": {
-                "address": ["hxe7af5fcfd8dfc67530a01a0e403882687528dfcb", "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb"],
+                "list":[{
+                    "id": "0xb903239f854..",
+                    "timestamp": "0x563a6cf330136",
+                    "address": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
+                    "name": "Proposal2",
+                    "amount": "0x1"
+                }, .. ],
                 "amount": "0x12345"
             },
             "disagree": {
-                "address": ["hxbe258ceb872e08851f1f59694dac2558708ece11"],
+                "list": [{
+                    "id": "0xa803239f854..",
+                    "timestamp": "0x563a6cf330136",
+                    "address": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
+                    "name": "Proposal3",
+                    "amount": "0x1"
+                }, .. ],
                 "amount": "0x123"
             },
             "noVote": {
-                "address": ["hx31258ceb872e08851f1f59694dac2558708ece11", .. , "hx31258ceb872e08851f1f59694dac2558708eceff"],
+                "list": ["hx31258ceb872e08851f1f59694dac2558708ece11", .. , "hx31258ceb872e08851f1f59694dac2558708eceff"],
                 "amount": "0x12312341234a"
             },
         },
         "contents": {
-            "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
+          	"title": "Disqualify P-Rep A",
+            "description": "P-Rep A does not maintain node",
             "type": "0x3",
             "value": {
                 "address": "hxbe258ceb872e08851f1f59694dac2558708ece11"
@@ -745,7 +759,7 @@ None
 }
 ```
 
-## getProposalList
+## getProposals
 
 * Query all of the network proposals.
 
@@ -776,7 +790,7 @@ None
         "timestamp": "0x563a6cf330136",
         "dataType": "call",
         "data": {
-            "method": "getProposalList",
+            "method": "getProposals",
             "params": {
                 "type": "0x3",
                 "status": "0x0"
@@ -789,27 +803,42 @@ None
 #### Response
 
 ```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "result": {
-        "proposals" : [
-            {
-                "description": "(1) Disqualify P-Rep A; P-Rep A does not maintain node",
-                "type": "0x3",
-                "status" : "0x0",
-                "startBlockHeight": "0x1",
-                "endBlockHeight" : "0x65"
+{  
+   "jsonrpc":"2.0",
+   "id":1234,
+   "result":{  
+      "proposals":[  
+         {  
+            "id":"0xb903239f8543..",
+            "proposer":"hxbe258ceb872e08851f1f59694dac2558708ece11",
+            "proposerName":"Proposer1",
+            "status":"0x0",
+            "startBlockHeight":"0x1",
+            "endBlockHeight":"0x65",
+            "vote":{  
+               "agree":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               },
+               "disagree":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               },
+               "noVote":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               }
             },
-           {
-                "description": "(2) Disqualify P-Rep B; P-Rep B does not maintain node",
-                "type": "0x3",
-                "status" : "0x0",
-                "startBlockHeight": "0x2",
-                "endBlockHeight" : "0x65"
+            "contents":{  
+               "title":"Disqualify P-Rep A",
+               "description":"P-Rep A does not maintain node",
+               "type":"0x3",
+               "value":{  
+                  "address":"hxbe258ceb872e08851f1f59694dac2558708ece11"
+               }
             }
-        ]
-    }
+         }, .. ]
+   }
 }
 ```
 
@@ -907,14 +936,15 @@ Invoke method can initiate state transition.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| description | [T\_STR](#T_STR) | Description of the network proposal |
-| type | [T\_INT](#T_INT) | Type of the network proposal |
-| value | T\_DICT | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
+| title | [T\_STR](#T_STR) | Title of the network proposal |
+| description | [T\_STR](#T_STR) | Description of the network proposal                          |
+| type        | [T\_INT](#T_INT) | Type of the network proposal                                 |
+| value | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
 
 #### value for type 0x0 (Text)
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| text | [T\_STR](#T_STR) | Text value |
+| value | [T\_STR](#T_STR) | Text value |
 
 #### value for type 0x1 (Revision)
 | Key | Value Type | Description |
@@ -945,25 +975,25 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 100,
+    "id": 1234,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "from": "hx8f21e5c54f006b6a5d5fe65486908592151a7c57",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
+        "stepLimit": "0x12345",
         "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "nid": "0x3",
+        "nonce": "0x0",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m5...",
         "dataType": "call",
         "data": {
             "method": "registerProposal",
             "params": {
-                "description": "Disqualify P-Rep A; P-Rep A does not maintain node",
-                "type": "0x0",
-                "value": {
-                  "text": "0x7b2261646472657373223a2022687865..."
-                }
+                "title": "Disqualify P-Rep A",
+                "description": "P-Rep A does not maintain node",
+                "type": "0x3",
+                "value": "0x7b2261646472657373223a2022.."
             }
         }
     }
@@ -1127,7 +1157,7 @@ Triggered on any successful registerProposal transaction.
 
 ```python
 @eventlog(indexed=0)
-def RegisterNetworkProposal(self, description: str, type: int, value: bytes, proposer: Address):
+def RegisterNetworkProposal(self, title: str, description: str, type: int, value: bytes, proposer: Address):
     pass
 ```
 
