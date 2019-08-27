@@ -806,7 +806,7 @@ class Governance(IconSystemScoreBase):
 
         address = Address.from_string(address)
 
-        self.unregister_prep(address)
+        self.disqualify_prep(address)
         self.DisqualifyPRep(address)
 
     def _set_step_price(self, value: str):
