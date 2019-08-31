@@ -157,6 +157,9 @@ class NetworkProposal:
         if str(voter_address) in addresses_of_voters_agreeing_or_disagreeing:
             revert("Already voted")
 
+        if str(voter_address) not in proposal_info.vote["noVote"]["list"]:
+            revert("No permission - only for main prep when network proposal registered")
+
         for main_prep in main_preps:
             if main_prep.address == voter_address:
                 voter_in_dict = self._generate_voter_in_dict(tx_hash, timestamp, main_prep)
