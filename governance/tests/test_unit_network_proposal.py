@@ -560,6 +560,13 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    NetworkProposalVote.DISAGREE,
                                    current_block_height, create_tx_hash(), buf_timestamp, [])
 
+        # case: raise revert voter is not main P-Rep when registered this network proposal
+            self.assertRaisesRegex(IconScoreException,
+                                   "No permission - only for main prep when network proposal registered",
+                                   self.network_proposal.vote_proposal, proposal_info.id, "hx1234",
+                                   NetworkProposalVote.DISAGREE,
+                                   current_block_height, create_tx_hash(), buf_timestamp, [])
+
         # case(6): when status is VOTING and check vote result is True and vote type is AGREE,
         # check status is APPROVED and return values is correct
         buf_proposal_info = deepcopy(proposal_info)
