@@ -94,7 +94,9 @@ class TestUnitNetworkProposal(unittest.TestCase):
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
     def test_proposal_info_to_bytes_from_bytes(self):
-        vote = self._generate_vote(1, 100, 2, 200, 3000)
+        total_voter: int = 22
+        total_delegated_amount: int = 3000
+        vote = self._generate_vote(1, 100, 2, 200, total_delegated_amount, total_voter)
         proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
             NetworkProposalStatus.VOTING, vote)
         proposal_info_in_bytes = proposal_info.to_bytes()
@@ -110,7 +112,9 @@ class TestUnitNetworkProposal(unittest.TestCase):
             "start_block_height": proposal_info.start_block_height,
             "end_block_height": proposal_info.end_block_height,
             "status": proposal_info.status,
-            "vote": vote
+            "vote": vote,
+            "total_voter": total_voter,
+            "total_delegated_amount": total_delegated_amount
         }
 
         self.assertEqual(proposal_info_in_bytes, dumps(expected_value).encode())
@@ -215,6 +219,26 @@ class TestUnitNetworkProposal(unittest.TestCase):
         vote = self._generate_vote(0, 0, 8, 33, 100)
         proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, vote)
         self.assertTrue(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
+
+        # case(7): return True, when type is 'agree', len(prep) >= 3, delegated >= 66%, total_voter = 4
+        vote = self._generate_vote(3, 66, 0, 0, 100, 4)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, vote)
+        self.assertTrue(self.network_proposal._check_vote_result(NetworkProposalVote.AGREE, proposal_info))
+
+        # case(8): return False, when type is 'agree', len(prep) = 2, delegated >= 66%, total_voter = 4
+        vote = self._generate_vote(2, 66, 0, 0, 100, 4)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, vote)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.AGREE, proposal_info))
+
+        # case(9): return True, when type is 'disagree', len(prep) = 2, delegated >= 33%, total_voter = 4
+        vote = self._generate_vote(0, 0, 2, 33, 100, 4)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, vote)
+        self.assertTrue(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
+
+        # case(10): return False, when type is 'disagree', len(prep) = 2, delegated < 33%, total_voter = 4
+        vote = self._generate_vote(0, 0, 2, 32, 100, 4)
+        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, vote)
+        self.assertFalse(self.network_proposal._check_vote_result(NetworkProposalVote.DISAGREE, proposal_info))
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_CHECK_REGISTERED_PROPOSAL)
     def test_get_proposal(self):
@@ -641,7 +665,8 @@ class TestUnitNetworkProposal(unittest.TestCase):
             self.assertEqual(proposal_info.value, proposal_info_value)
 
     def _generate_vote(self, cnt_agree_voter: int, delegated_agree_voter: int, cnt_disagree_voter: int,
-                       delegated_disagree_voter: int, total_delegated: int) -> dict:
+                       delegated_disagree_voter: int, total_delegated: int,
+                       total_voter: int = COUNT_OF_MAIN_PREPS) -> dict:
         vote = {
             "agree": {
                 "list": [self._generate_vote_item_in_dict() for _ in range(cnt_agree_voter)],
@@ -653,7 +678,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
             },
             "noVote": {
                 "list": [str(create_address()) for _ in
-                         range(COUNT_OF_MAIN_PREPS - cnt_agree_voter - cnt_disagree_voter)],
+                         range(total_voter - cnt_agree_voter - cnt_disagree_voter)],
                 "amount": total_delegated - delegated_agree_voter - delegated_disagree_voter
             }
         }

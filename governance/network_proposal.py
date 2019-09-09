@@ -22,10 +22,8 @@ class NetworkProposalVote:
 
 
 class ApproveCondition:
-    APPROVE_VOTE_COUNT = 15
-    APPROVE_DELEGATION_RATE = 0.66
-    DISAPPROVE_VOTE_COUNT = 8
-    DISAPPROVE_DELEGATION_RATE = 0.33
+    APPROVE_RATE = 0.66
+    DISAPPROVE_RATE = 0.33
 
 
 class MaliciousScoreType:
@@ -96,7 +94,7 @@ class NetworkProposal:
         }
 
         proposal_info = ProposalInfo(id, proposer, proposer_name, title, description, type, value, start, expired,
-                                     _STATUS, _VOTER)
+                                     _STATUS, _VOTER, len(main_prep_addresses), main_prep_total_delegated)
         self._proposal_list[id] = proposal_info.to_bytes()
 
     def cancel_proposal(self, id: bytes, proposer: 'Address', current_block_height: int) -> None:
@@ -306,11 +304,13 @@ class NetworkProposal:
         delegated_of_preps_to_vote: int = preps_to_vote["amount"]
         try:
             if vote_type == NetworkProposalVote.AGREE:
-                return len(voters_of_preps_to_vote) >= ApproveCondition.APPROVE_VOTE_COUNT \
-                       and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.APPROVE_DELEGATION_RATE
+                return len(voters_of_preps_to_vote) / proposal_info.total_voter >= ApproveCondition.APPROVE_RATE \
+                       and delegated_of_preps_to_vote / proposal_info.total_delegated_amount \
+                       >= ApproveCondition.APPROVE_RATE
             else:
-                return len(voters_of_preps_to_vote) >= ApproveCondition.DISAPPROVE_VOTE_COUNT \
-                       and delegated_of_preps_to_vote / total_delegated >= ApproveCondition.DISAPPROVE_DELEGATION_RATE
+                return len(voters_of_preps_to_vote) / proposal_info.total_voter >= ApproveCondition.DISAPPROVE_RATE \
+                       and delegated_of_preps_to_vote / proposal_info.total_delegated_amount \
+                       >= ApproveCondition.DISAPPROVE_RATE
         except ZeroDivisionError:
             return False
 
@@ -396,7 +396,8 @@ class ProposalInfo:
     """ ProposalInfo Class including proposal information"""
 
     def __init__(self, id: bytes, proposer: 'Address', proposer_name: str, title: str, description: str, type: int,
-                 value: dict, start_block_height: int, end_block_height: int, status: int, vote: dict):
+                 value: dict, start_block_height: int, end_block_height: int, status: int, vote: dict,
+                 total_voter: int = 0, total_delegated_amount: int = 0):
         self.id = id
         self.proposer = proposer
         self.proposer_name = proposer_name
@@ -408,6 +409,12 @@ class ProposalInfo:
         self.end_block_height = end_block_height
         self.status = status
         self.vote = vote
+        if total_voter == 0 and total_delegated_amount == 0:
+            for vote_type_in_str in ("agree", "disagree", "noVote"):
+                total_voter += len(vote[vote_type_in_str]["list"])
+                total_delegated_amount += vote[vote_type_in_str]["amount"]
+        self.total_voter = total_voter
+        self.total_delegated_amount = total_delegated_amount
 
     def to_bytes(self) -> bytes:
         """ Convert ProposalInfo to bytes
