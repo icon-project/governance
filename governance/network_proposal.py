@@ -177,6 +177,9 @@ class NetworkProposal:
                     approved = True
                 else:
                     proposal_info.status = NetworkProposalStatus.DISAPPROVED
+            elif len(proposal_info.vote["noVote"]["list"]) == 0:
+                # All voters voted but the status is still VOTING. Set status to DISAPPROVED
+                proposal_info.status = NetworkProposalStatus.DISAPPROVED
 
         self._proposal_list[id] = proposal_info.to_bytes()
 

@@ -664,6 +664,48 @@ class TestUnitNetworkProposal(unittest.TestCase):
             self.assertEqual(proposal_info.type, proposal_info_type)
             self.assertEqual(proposal_info.value, proposal_info_value)
 
+        # case(8): when status is VOTING and last voter votes to DISAGREE and check vote result is False,
+        # check status is DISAPPROVED and return values is correct
+        new_voter = self._generate_vote(3, DEFAULT_DELEGATED * 3, 0, 0, DEFAULT_DELEGATED * 6, 4)
+        proposal_info, self.network_proposal._proposal_list[proposal_info.id] = self._generate_proposal_info(
+            NetworkProposalStatus.VOTING, new_voter)
+        current_block_height = proposal_info.end_block_height - 1
+
+        buf_proposal_info = deepcopy(proposal_info)
+        with patch.object(ProposalInfo, 'from_bytes', return_value=deepcopy(buf_proposal_info)):
+            buf_proposal_info.status = NetworkProposalStatus.VOTING
+            self.assertEqual(buf_proposal_info.status, NetworkProposalStatus.VOTING)
+
+            buf_voter_address = new_voter["noVote"]["list"][0]
+            buf_prep_of_voter_address = Prep(buf_voter_address, DEFAULT_DELEGATED * 3)
+            buf_id = create_tx_hash()
+            buf_voter_item_in_dict = self.network_proposal._generate_voter_in_dict(buf_id, buf_timestamp,
+                                                                                   buf_prep_of_voter_address)
+
+            voter_all_types = [voter_item["address"] for voter_item in
+                               new_voter["agree"]["list"] + new_voter["disagree"]["list"]]
+            voter_all_types += new_voter["noVote"]["list"]
+
+            main_preps = [Prep(address, DEFAULT_DELEGATED if address != buf_voter_address else DEFAULT_DELEGATED * 3)
+                          for address in voter_all_types]
+            approved, proposal_info_type, proposal_info_value = self.network_proposal.vote_proposal(proposal_info.id,
+                                                                                                    buf_voter_address,
+                                                                                                    NetworkProposalVote.DISAGREE,
+                                                                                                    current_block_height,
+                                                                                                    buf_id,
+                                                                                                    buf_timestamp,
+                                                                                                    main_preps)
+
+            buf_proposal_info.status = NetworkProposalStatus.DISAPPROVED
+            buf_proposal_info.vote["disagree"]["list"].append(buf_voter_item_in_dict)
+            buf_proposal_info.vote["disagree"]["amount"] += DEFAULT_DELEGATED * 3
+            buf_proposal_info.vote["noVote"]["list"].remove(buf_voter_item_in_dict["address"])
+            buf_proposal_info.vote["noVote"]["amount"] -= DEFAULT_DELEGATED * 3
+            self.assertEqual(self.network_proposal._proposal_list[proposal_info.id], buf_proposal_info.to_bytes())
+            self.assertFalse(approved)
+            self.assertEqual(proposal_info.type, proposal_info_type)
+            self.assertEqual(proposal_info.value, proposal_info_value)
+
     def _generate_vote(self, cnt_agree_voter: int, delegated_agree_voter: int, cnt_disagree_voter: int,
                        delegated_disagree_voter: int, total_delegated: int,
                        total_voter: int = COUNT_OF_MAIN_PREPS) -> dict:
