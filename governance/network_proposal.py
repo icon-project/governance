@@ -134,6 +134,9 @@ class NetworkProposal:
         :param main_preps: main preps list
         :return: bool - True means success for voting and False means failure for voting
         """
+        if not self._validate_vote_type(vote_type):
+            revert("Invalid parameter")
+
         if not self._check_registered_proposal(id):
             revert("No registered proposal")
 
@@ -209,6 +212,13 @@ class NetworkProposal:
         :param status: status of network proposal to filter (optional)
         :return: the proposal info list in result format in dict
         """
+
+        if type is not None and not self._validate_proposal_type(type):
+            revert("Invalid parameter")
+
+        if status is not None and not self._validate_proposal_status(status):
+            revert("Invalid parameter")
+
         proposals = []
         for id in self._proposal_list_keys:
             proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
@@ -231,8 +241,22 @@ class NetworkProposal:
         }
         return result
 
+    @staticmethod
+    def _validate_proposal_type(type: int):
+        return True if type in range(5) else False
+
+    @staticmethod
+    def _validate_proposal_status(status: int):
+        return True if status in range(4) else False
+
+    @staticmethod
+    def _validate_vote_type(vote_type: int):
+        return True if vote_type in (0, 1) else False
+
     def _validate_proposal(self, proposal_type: int, value: dict):
         result = False
+        if not self._validate_proposal_type(proposal_type):
+            return result
         try:
             validator = self._validate_func[proposal_type]
             result = validator(value)
