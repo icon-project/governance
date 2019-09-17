@@ -7,6 +7,8 @@ class NetworkProposalType:
     MALICIOUS_SCORE = 2
     PREP_DISQUALIFICATION = 3
     STEP_PRICE = 4
+    MIN = TEXT
+    MAX = STEP_PRICE
 
 
 class NetworkProposalStatus:
@@ -14,11 +16,15 @@ class NetworkProposalStatus:
     APPROVED = 1
     DISAPPROVED = 2
     CANCELED = 3
+    MIN = VOTING
+    MAX = CANCELED
 
 
 class NetworkProposalVote:
     DISAGREE = 0
     AGREE = 1
+    MIN = DISAGREE
+    MAX = AGREE
 
 
 class ApproveCondition:
@@ -27,9 +33,9 @@ class ApproveCondition:
 
 
 class MaliciousScoreType:
-    MIN = 0
-    FREEZE = MIN
+    FREEZE = 0
     UNFREEZE = 1
+    MIN = FREEZE
     MAX = UNFREEZE
 
 
@@ -64,7 +70,7 @@ class NetworkProposal:
         :param main_preps: main preps in list, List['PRepInfo']
         """
         if not self._validate_proposal(type, value):
-            revert("Invalid parameter")
+            revert(f"Invalid parameter - type: {type}, value: {value}")
 
         self._proposal_list_keys.put(id)
         _STATUS = NetworkProposalStatus.VOTING
@@ -135,7 +141,7 @@ class NetworkProposal:
         :return: bool - True means success for voting and False means failure for voting
         """
         if not self._validate_vote_type(vote_type):
-            revert("Invalid parameter")
+            revert(f"Invalid vote parameter: {vote_type}")
 
         if not self._check_registered_proposal(id):
             revert("No registered proposal")
@@ -212,12 +218,11 @@ class NetworkProposal:
         :param status: status of network proposal to filter (optional)
         :return: the proposal info list in result format in dict
         """
-
         if type is not None and not self._validate_proposal_type(type):
-            revert("Invalid parameter")
+            revert(f"Invalid type parameter: {type}")
 
         if status is not None and not self._validate_proposal_status(status):
-            revert("Invalid parameter")
+            revert(f"Invalid status parameter: {status}")
 
         proposals = []
         for id in self._proposal_list_keys:
@@ -242,16 +247,16 @@ class NetworkProposal:
         return result
 
     @staticmethod
-    def _validate_proposal_type(type: int):
-        return True if type in range(5) else False
+    def _validate_proposal_type(type_: int):
+        return True if NetworkProposalType.MIN <= type_ <= NetworkProposalType.MAX else False
 
     @staticmethod
     def _validate_proposal_status(status: int):
-        return True if status in range(4) else False
+        return True if NetworkProposalStatus.MIN <= status <= NetworkProposalStatus.MAX else False
 
     @staticmethod
-    def _validate_vote_type(vote_type: int):
-        return True if vote_type in (0, 1) else False
+    def _validate_vote_type(type_: int):
+        return True if NetworkProposalVote.MIN <= type_ <= NetworkProposalVote.MAX else False
 
     def _validate_proposal(self, proposal_type: int, value: dict):
         result = False
