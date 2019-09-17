@@ -120,10 +120,32 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.assertEqual(proposal_info_in_bytes, dumps(expected_value).encode())
         self.assertEqual(proposal_info_in_bytes, proposal_info.from_bytes(proposal_info_in_bytes).to_bytes())
 
+    def test_validate_proposal_type(self):
+        for valid_proposal_type in (0, 1, 2, 3, 4):
+            self.assertTrue(self.network_proposal._validate_proposal_type(valid_proposal_type))
+        for invalid_proposal_type in (5, 6, 7, -1, 1000):
+            self.assertFalse(self.network_proposal._validate_proposal_type(invalid_proposal_type))
+
+    def test_validate_proposal_status(self):
+        for valid_proposal_status in (0, 1, 2, 3):
+            self.assertTrue(self.network_proposal._validate_proposal_status(valid_proposal_status))
+        for invalid_proposal_status in (4, 5, 6, 7, -1, 1000):
+            self.assertFalse(self.network_proposal._validate_proposal_status(invalid_proposal_status))
+
+    def test_validate_vote_type(self):
+        for valid_vote_type in (0, 1):
+            self.assertTrue(self.network_proposal._validate_vote_type(valid_vote_type))
+        for invalid_vote_type in (2, 3, 4, 5, 6, 7, -1, 1000):
+            self.assertFalse(self.network_proposal._validate_vote_type(invalid_vote_type))
+
     @patch_several(PATCHER_VALIDATE_TEXT_PROPOSAL, PATCHER_VALIDATE_REVISION_PROPOSAL,
                    PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
                    PATCHER_VALIDATE_STEP_PRICE_PROPOSAL)
     def test_validate_proposal(self):
+        for invalid_vote_type in (5, 6, 7, -1, 1000):
+            tmp_value = {}
+            self.assertFalse(self.network_proposal._validate_proposal(invalid_vote_type, tmp_value))
+
         value_of_type_0 = {"value": "text"}
         value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
         value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
@@ -584,7 +606,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
                                    NetworkProposalVote.DISAGREE,
                                    current_block_height, create_tx_hash(), buf_timestamp, [])
 
-        # case: raise revert voter is not main P-Rep when registered this network proposal
+            # case: raise revert voter is not main P-Rep when registered this network proposal
             self.assertRaisesRegex(IconScoreException,
                                    "No permission - only for main prep when network proposal registered",
                                    self.network_proposal.vote_proposal, proposal_info.id, "hx1234",
