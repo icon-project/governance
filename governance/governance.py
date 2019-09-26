@@ -141,27 +141,23 @@ class Governance(IconSystemScoreBase):
         pass
 
     @eventlog(indexed=0)
-    def AddMaliciousScore(self, address: Address):
+    def MaliciousScore(self, address: Address, freeze: int):
         pass
 
     @eventlog(indexed=0)
-    def RemoveMaliciousScore(self, address: Address):
+    def PRepDisqualified(self, address: Address, success: bool, reason: str):
         pass
 
     @eventlog(indexed=0)
-    def DisqualifyPRep(self, address: Address):
+    def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
         pass
 
     @eventlog(indexed=0)
-    def RegisterNetworkProposal(self, title: str, description: str, type: int, value: bytes, proposer: Address):
+    def NetworkProposalCanceled(self, id: bytes):
         pass
 
     @eventlog(indexed=0)
-    def CancelNetworkProposal(self, id: bytes):
-        pass
-
-    @eventlog(indexed=0)
-    def VoteNetworkProposal(self, id: bytes, vote: int, voter: Address):
+    def NetworkProposalVoted(self, id: bytes, vote: int, voter: Address):
         pass
 
     @eventlog(indexed=0)
@@ -491,7 +487,7 @@ class Governance(IconSystemScoreBase):
 
         if address not in self._score_black_list:
             self._score_black_list.put(address)
-            self.AddMaliciousScore(address)
+            self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
             revert('Invalid address: already SCORE blacklist')
 
@@ -512,7 +508,7 @@ class Governance(IconSystemScoreBase):
                 if self._score_black_list[i] == address:
                     self._score_black_list[i] = top
 
-        self.RemoveMaliciousScore(address)
+        self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
         if DEBUG is True:
             self._print_black_list('removeScoreFromBlackList')
@@ -698,7 +694,7 @@ class Governance(IconSystemScoreBase):
         self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
                                                  title, description, type, value_in_dict, main_preps)
 
-        self.RegisterNetworkProposal(title, description, type, value, self.msg.sender)
+        self.NetworkProposalRegistered(title, description, type, value, self.msg.sender)
 
     @external
     def cancelProposal(self, id: bytes):
@@ -714,7 +710,7 @@ class Governance(IconSystemScoreBase):
 
         self._network_proposal.cancel_proposal(id, self.msg.sender, self.block_height)
 
-        self.CancelNetworkProposal(id)
+        self.NetworkProposalCanceled(id)
 
     @external
     def voteProposal(self, id: bytes, vote: int):
@@ -736,9 +732,9 @@ class Governance(IconSystemScoreBase):
                                                                               self.tx.timestamp,
                                                                               main_preps)
 
-        self.VoteNetworkProposal(id, vote, self.msg.sender)
+        self.NetworkProposalVoted(id, vote, self.msg.sender)
 
-        if approved:
+        if approved is True:
             self.NetworkProposalApproved(id)
 
             # value dict has str key, value. convert str value to appropriate type to use
@@ -806,8 +802,8 @@ class Governance(IconSystemScoreBase):
 
         address = Address.from_string(address)
 
-        self.disqualify_prep(address)
-        self.DisqualifyPRep(address)
+        success, reason = self.disqualify_prep(address)
+        self.PRepDisqualified(address, success, reason)
 
     def _set_step_price(self, value: str):
         # check message sender, only main P-Rep can set step price

@@ -42,7 +42,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             block_height = block['height']
         return block_height
 
-    def _reset_block_height(self, remain_blocks):
+    def _reset_block_height(self, need_blocks):
         iiss_info = self._get_iiss_info()
 
         next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
@@ -50,7 +50,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             next_term = int(iiss_info.get('nextCalculation', 0), 16)
         current_block = self._get_block_height()
 
-        if (next_term - current_block) < remain_blocks + 1:
+        if (next_term - current_block) < need_blocks + 1:
             self._make_blocks(next_term)
 
     def _make_blocks(self, to: int):
@@ -192,6 +192,26 @@ class TestNetworkProposal(IconIntegrateTestBase):
             register_prep_tx_list.append(self._create_register_prep_tx(prep))
 
         return register_prep_tx_list
+
+    @staticmethod
+    def _create_unregister_prep_tx(key_wallet: 'KeyWallet',
+                                   value: int = 0,
+                                   step_limit: int = DEFAULT_STEP_LIMIT,
+                                   nid: int = DEFAULT_NID,
+                                   nonce: int = 0) -> 'SignedTransaction':
+        transaction = CallTransactionBuilder(). \
+            from_(key_wallet.get_address()). \
+            to(SCORE_INSTALL_ADDRESS). \
+            value(value). \
+            step_limit(step_limit). \
+            nid(nid). \
+            nonce(nonce). \
+            method("unregisterPRep"). \
+            build()
+
+        signed_transaction = SignedTransaction(transaction, key_wallet)
+
+        return signed_transaction
 
     @staticmethod
     def _create_stake_tx(key_wallet: 'KeyWallet',
@@ -390,33 +410,33 @@ class TestNetworkProposal(IconIntegrateTestBase):
                 self.assertEqual(1, resp['status'],
                                  f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
-        # stake and delegate
-        # min delegation amount = 0.02 * total supply
-        delegate_value = self.icon_service.get_total_supply() * 2 // 1000
-        stake_value = delegate_value * 2
+            # stake and delegate
+            # min delegation amount = 0.02 * total supply
+            delegate_value = self.icon_service.get_total_supply() * 2 // 1000
+            stake_value = delegate_value * 2
 
-        tx_list = []
-        for i, prep in enumerate(preps):
-            # stake
-            tx_list.append(self._create_stake_tx(prep, stake_value))
+            tx_list = []
+            for i, prep in enumerate(preps):
+                # stake
+                tx_list.append(self._create_stake_tx(prep, stake_value))
 
-            # delegate
-            if i == 0:
-                delegate = delegate_value * 2
-            else:
-                delegate = delegate_value
+                # delegate
+                if i == 0:
+                    delegate = delegate_value * 2
+                else:
+                    delegate = delegate_value
 
-            tx_list.append(self._create_delegation_tx(prep,
-                                                      [{"address": prep.get_address(), "value": hex(delegate)}]))
+                tx_list.append(self._create_delegation_tx(prep,
+                                                          [{"address": prep.get_address(), "value": hex(delegate)}]))
 
-        # process TX with bulk
-        response = self.process_transaction_bulk(tx_list, self.icon_service)
-        for i, resp in enumerate(response):
-            self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
-            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            # process TX with bulk
+            response = self.process_transaction_bulk(tx_list, self.icon_service)
+            for i, resp in enumerate(response):
+                self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+                self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
-        # go to next P-Rep term for main P-Rep election
-        self._make_blocks_to_next_term()
+            # go to next P-Rep term for main P-Rep election
+            self._make_blocks_to_next_term()
 
         # get main P-Rep
         response = self.get_main_preps()
@@ -436,7 +456,14 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertTrue('status' in response and 1 == response['status'],
                         f"TX:\n{tx.signed_transaction_dict}\nTX_RESULT:\n{response}")
         np_id = response['txHash']
-
+        # check event log
+        event_log = response['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('NetworkProposalRegistered(str,str,int,bytes,Address)', event_log['indexed'][0], event_log)
+        self.assertEqual(title, event_log['data'][0], event_log)
+        self.assertEqual(desc, event_log['data'][1], event_log)
+        self.assertEqual(hex(NetworkProposalType.TEXT), event_log['data'][2], event_log)
+        self.assertEqual(proposer.get_address(), event_log['data'][4], event_log)
         # check proposal
         response = self.get_network_proposal(np_id)
         self.assertEqual(proposer.get_address(), response['proposer'], response)
@@ -447,20 +474,42 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # vote - agree
         tx = self._create_vote_proposal_tx(proposer, np_id, NetworkProposalVote.AGREE)
-        self.process_transaction(tx, self.icon_service)
+        response = self.process_transaction(tx, self.icon_service)
+        # check event log
+        event_log = response['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('NetworkProposalVoted(bytes,int,Address)', event_log['indexed'][0], event_log)
+        self.assertEqual(np_id, event_log['data'][0], event_log)
+        self.assertEqual(hex(NetworkProposalVote.AGREE), event_log['data'][1], event_log)
+        self.assertEqual(proposer.get_address(), event_log['data'][2], event_log)
+        # check proposal
         response = self.get_network_proposal(np_id)
         self.assertTrue(proposer.get_address() in response['vote']['agree']['list'][0]["address"])
 
         # vote - disagree
         tx = self._create_vote_proposal_tx(self._wallet_array[0], np_id, NetworkProposalVote.DISAGREE)
-        self.process_transaction(tx, self.icon_service)
+        response = self.process_transaction(tx, self.icon_service)
+        # check event log
+        event_log = response['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('NetworkProposalVoted(bytes,int,Address)', event_log['indexed'][0], event_log)
+        self.assertEqual(np_id, event_log['data'][0], event_log)
+        self.assertEqual(hex(NetworkProposalVote.DISAGREE), event_log['data'][1], event_log)
+        self.assertEqual(self._wallet_array[0].get_address(), event_log['data'][2], event_log)
+        # check proposal
         response = self.get_network_proposal(np_id)
         self.assertTrue(self._wallet_array[0].get_address() in response['vote']['disagree']['list'][0]["address"],
                         response)
 
         # cancel proposal
         tx = self._create_cancel_proposal_tx(proposer, np_id)
-        self.process_transaction(tx, self.icon_service)
+        response = self.process_transaction(tx, self.icon_service)
+        # check event log
+        event_log = response['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('NetworkProposalCanceled(bytes)', event_log['indexed'][0], event_log)
+        self.assertEqual(np_id, event_log['data'][0], event_log)
+        # check proposal
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.CANCELED), response['status'], response)
 
@@ -499,7 +548,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
         # vote - agree (16, 74%)
         tx = self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE)
-        self.process_transaction(tx, self.icon_service)
+        response = self.process_transaction(tx, self.icon_service)
+        # check event log
+        event_log = response['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('NetworkProposalApproved(bytes)', event_log['indexed'][0], event_log)
+        self.assertEqual(np_id, event_log['data'][0], event_log)
+        # check status
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -634,6 +689,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('RevisionChanged(int,str)', event_log['indexed'][0], event_log)
+        self.assertEqual(hex(code), event_log['data'][0], event_log)
+        self.assertEqual(name, event_log['data'][1], event_log)
+        # check proposal status
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -664,6 +726,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('MaliciousScore(Address,int)', event_log['indexed'][0], event_log)
+        self.assertEqual(address, event_log['data'][0], event_log)
+        self.assertEqual(hex(MaliciousScoreType.FREEZE), event_log['data'][1], event_log)
+        # check proposal status
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -697,6 +766,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('MaliciousScore(Address,int)', event_log['indexed'][0], event_log)
+        self.assertEqual(address, event_log['data'][0], event_log)
+        self.assertEqual(hex(MaliciousScoreType.UNFREEZE), event_log['data'][1], event_log)
+        # check proposal status
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
@@ -712,6 +788,49 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_060_prep_disqualification(self):
         # register new P-Rep for disqualification
+        new_prep = self._make_new_prep()
+
+        # register proposal - P-Rep disqualification
+        proposer = self._test1
+        title = "test title"
+        desc = 'P-Rep disqualification network proposal'
+        value = {"address": new_prep.get_address()}
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.PREP_DISQUALIFICATION, value)
+        response = self.process_transaction(tx, self.icon_service)
+        np_id = response['txHash']
+
+        # vote - agree (15, 69%)
+        tx_list = [self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE)]
+        for prep in self._wallet_array[0:14]:
+            tx_list.append(self._create_vote_proposal_tx(prep, np_id, NetworkProposalVote.AGREE))
+        response = self.process_transaction_bulk(tx_list, self.icon_service)
+        for i, resp in enumerate(response):
+            self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('PRepDisqualified(Address,bool,str)', event_log['indexed'][0], event_log)
+        self.assertEqual(new_prep.get_address(), event_log['data'][0], event_log)
+        self.assertEqual('0x1', event_log['data'][1], event_log)
+        self.assertEqual('', event_log['data'][2], event_log)
+
+        # check network proposal approved
+        response = self.get_network_proposal(np_id)
+        self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
+
+        # check P-Rep disqualification
+        call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(SCORE_INSTALL_ADDRESS) \
+            .method("getPRep") \
+            .params({"address": new_prep.get_address()}) \
+            .build()
+        response = self.process_call(call, self.icon_service)
+        self.assertEqual(hex(PRepStatus.DISQUALIFIED.value), response['status'], response)
+
+    def _make_new_prep(self) -> KeyWallet:
         new_prep = KeyWallet.create()
 
         # transfer ICX to new P-Rep
@@ -734,8 +853,14 @@ class TestNetworkProposal(IconIntegrateTestBase):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
 
-        # go to next P-Rep term for main P-Rep election
+        # go to next P-Rep term for P-Rep election
         self._make_blocks_to_next_term()
+
+        return new_prep
+
+    def test_061_prep_disqualification_failed(self):
+        # register new P-Rep for disqualification
+        new_prep = self._make_new_prep()
 
         # register proposal - P-Rep disqualification
         proposer = self._test1
@@ -746,18 +871,31 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.process_transaction(tx, self.icon_service)
         np_id = response['txHash']
 
+        # unregister disqualification target
+        tx_list = [self._create_unregister_prep_tx(new_prep)]
+
         # vote - agree (15, 69%)
-        tx_list = [self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE)]
+        tx_list.append(self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE))
         for prep in self._wallet_array[0:14]:
             tx_list.append(self._create_vote_proposal_tx(prep, np_id, NetworkProposalVote.AGREE))
         response = self.process_transaction_bulk(tx_list, self.icon_service)
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+
+        # check disqualification event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('PRepDisqualified(Address,bool,str)', event_log['indexed'][0], event_log)
+        self.assertEqual(new_prep.get_address(), event_log['data'][0], event_log)
+        self.assertEqual('0x0', event_log['data'][1], event_log)
+        self.assertTrue(event_log['data'][2].startswith(f'Inactive P-Rep: {new_prep.get_address()}'), event_log)
+
+        # check approved
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
-        # check P-Rep unregistered
+        # check P-Rep disqualification
         call = CallBuilder() \
             .from_(self._test1.get_address()) \
             .to(SCORE_INSTALL_ADDRESS) \
@@ -765,7 +903,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
             .params({"address": new_prep.get_address()}) \
             .build()
         response = self.process_call(call, self.icon_service)
-        self.assertEqual(hex(PRepStatus.DISQUALIFIED.value), response['status'], response)
+        self.assertEqual(hex(PRepStatus.UNREGISTERED.value), response['status'], response)
 
     def test_070_step_price(self):
         # go to next P-Rep term for main P-Rep election
@@ -789,6 +927,12 @@ class TestNetworkProposal(IconIntegrateTestBase):
         for i, resp in enumerate(response):
             self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
             self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('StepPriceChanged(int)', event_log['indexed'][0], event_log)
+        self.assertEqual(hex(step_price), event_log['indexed'][1], event_log)
+        # check proposal status
         response = self.get_network_proposal(np_id)
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
