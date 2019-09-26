@@ -141,7 +141,7 @@ class Governance(IconSystemScoreBase):
         pass
 
     @eventlog(indexed=0)
-    def MaliciousScore(self, address: Address, frozen: int):
+    def MaliciousScore(self, address: Address, freeze: int):
         pass
 
     @eventlog(indexed=0)
@@ -487,7 +487,7 @@ class Governance(IconSystemScoreBase):
 
         if address not in self._score_black_list:
             self._score_black_list.put(address)
-            self.MaliciousScore(address, 0)
+            self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
             revert('Invalid address: already SCORE blacklist')
 
@@ -508,7 +508,7 @@ class Governance(IconSystemScoreBase):
                 if self._score_black_list[i] == address:
                     self._score_black_list[i] = top
 
-        self.MaliciousScore(address, 1)
+        self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
         if DEBUG is True:
             self._print_black_list('removeScoreFromBlackList')
