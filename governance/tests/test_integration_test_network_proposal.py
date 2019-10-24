@@ -10,7 +10,7 @@ from iconsdk.providers.http_provider import HTTPProvider
 from iconsdk.signed_transaction import SignedTransaction
 from iconsdk.wallet.wallet import KeyWallet
 from iconservice.base.type_converter_templates import ConstantKeys
-from iconservice.icon_constant import REV_IISS, REV_DECENTRALIZATION, PRepStatus
+from iconservice.icon_constant import Revision
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 
 from governance.network_proposal import NetworkProposalType, NetworkProposalVote, NetworkProposalStatus, \
@@ -377,15 +377,15 @@ class TestNetworkProposal(IconIntegrateTestBase):
             code = 0
 
         # update governance SCORE & revision, if necessary
-        if code < REV_DECENTRALIZATION:
+        if code < Revision.DECENTRALIZATION.value:
             # deploy initial governance SCORE
             self._update_governance_score(self.INIT_GOVERNANCE)
 
             # enable IISS
-            self._set_revision(REV_IISS, "enable IISS")
+            self._set_revision(Revision.IISS.value, "enable IISS")
 
             # enable decentralization
-            response = self._set_revision(REV_DECENTRALIZATION, "enable decentralization")
+            response = self._set_revision(Revision.DECENTRALIZATION.value, "enable decentralization")
             self.assertTrue('status' in response, response)
             self.assertEqual(1, response['status'], response)
 

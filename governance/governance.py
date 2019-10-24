@@ -141,7 +141,7 @@ class Governance(IconSystemScoreBase):
         pass
 
     @eventlog(indexed=0)
-    def MaliciousScore(self, address: Address, freeze: int):
+    def MaliciousScore(self, address: Address, unfreeze: int):
         pass
 
     @eventlog(indexed=0)

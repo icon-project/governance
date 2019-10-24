@@ -88,12 +88,11 @@ NAME: Not an empty string
     * ~~RemoveImportWhiteList~~ (deprecated)
     * ~~UpdateServiceConfigLog~~ (deprecated)
     * [RevisionChanged](#revisionchanged)
-    * [AddMaliciousScore](#addmaliciousscore)
-    * [RemoveMaliciousScore](#removemaliciousscore)
-    * [DisqualifyPRep](#disqualifyprep)
-    * [RegisterNetworkProposal](#registernetworkproposal)
-    * [CancelNetworkProposal](#cancelnetworkproposal)
-    * [VoteNetworkProposal](#votenetworkproposal)
+    * [MaliciousScore](#maliciousscore)
+    * [PRepDisqualified](#prepdisqualified)
+    * [NetworkProposalRegistered](#networkproposalregistered)
+    * [NetworkProposalCanceled](#networkproposalcanceled)
+    * [NetworkProposalVoted](#networkproposalvoted)
     * [NetworkProposalApproved](#networkproposalapproved)
 
 # Query Methods
@@ -1121,63 +1120,53 @@ Triggered on vote transaction approving 'Revision' network proposal.
     pass
 ```
 
-## AddMaliciousSCORE
+## MaliciousSCORE
 
 Triggered on vote transaction approving 'Malicious SCORE' network proposal.
 
 ```python
 @eventlog(indexed=0)
-def AddMaliciousScore(self, address: Address):
+def MaliciousScore(self, address: Address, unfreeze: int):
     pass
 ```
 
-## RemoveMaliciousSCORE
-
-Triggered on vote transaction approving 'Malicious SCORE' network proposal.
-
-```python
-@eventlog(indexed=0)
-def RemoveMaliciousScore(self, address: Address):
-    pass
-```
-
-## DisqualifyPRep
+## PRepDisqualified
 
 Triggered on vote transaction approving 'P-Rep Disqualification' network proposal.
 
 ```python
 @eventlog(indexed=0)
-def DisqualifyPRep(self, address: Address):
+def PRepDisqualified(self, address: Address, success: bool, reason: str):
     pass
 ```
 
-## RegisterNetworkProposal
+## NetworkProposalRegistered
 
 Triggered on any successful registerProposal transaction.
 
 ```python
 @eventlog(indexed=0)
-def RegisterNetworkProposal(self, title: str, description: str, type: int, value: bytes, proposer: Address):
+def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
     pass
 ```
 
-## CancelNetworkProposal
+## NetworkProposalCanceled
 
 Triggered on any successful cancelProposal transaction.
 
 ```python
 @eventlog(indexed=0)
-def CancelNetworkProposal(self, id: bytes):
+def NetworkProposalCanceled(self, id: bytes):
     pass
 ```
 
-## VoteNetworkProposal
+## NetworkProposalVoted
 
 Triggered on any successful voteProposal transaction.
 
 ```python
 @eventlog(indexed=0)
-def VoteNetworkProposal(self, id: bytes, vote: int, voter: Address):
+def NetworkProposalVoted(self, id: bytes, vote: int, voter: Address):
     pass
 ```
 
