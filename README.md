@@ -20,6 +20,7 @@ The most commonly used Value types are as follows.
 | <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a> | "cx" + 40 digits HEX string | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32 |
 | <a id="T_HASH">T\_HASH</a> | "0x" + 64 digits HEX string | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
 | <a id="T_INT">T\_INT</a> | "0x" + lowercase HEX string | 0xa |
+| <a id="T_STR">T\_STR</a> | string | hello |
 | <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}" |
 | <a id="T_BIN_DATA">T\_BIN\_DATA</a> | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2 |
 | <a id="T_SIG">T\_SIG</a> | base64 encoded string | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
@@ -56,31 +57,43 @@ NAME: Not an empty string
     * [isInImportWhiteList](#isinimportwhitelist)
     * [getServiceConfig](#getserviceconfig)
     * [getRevision](#getrevision)
+    * [getProposal](#getproposal)
+    * [getProposals](#getproposals)
 * Invoke methods
     * [acceptScore](#acceptscore)
     * [rejectScore](#rejectscore)
     * [addAuditor](#addauditor)
     * [removeAuditor](#removeauditor)
-    * [setStepPrice](#setstepprice)
-    * [setStepCost](#setstepcost)
-    * [setMaxStepLimit](#setmaxsteplimit)
-    * [addDeployer](#adddeployer)
-    * [removeDeployer](#removedeployer)
-    * [addToScoreBlackList](#addtoscoreblacklist)
-    * [removeFromScoreBlackList](#removefromscoreblacklist)
-    * [addImportWhiteList](#addimportwhitelist)
-    * [removeImportWhiteList](#removeimportwhitelist)
-    * [updateServiceConfig](#updateserviceconfig)
-    * [setRevision](#setrevision)
+    * ~~setStepPrice~~ (deprecated)
+    * ~~setStepCost~~ (deprecated)
+    * ~~setMaxStepLimit~~ (deprecated)
+    * ~~addDeployer~~ (deprecated)
+    * ~~removeDeployer~~ (deprecated)
+    * ~~addToScoreBlackList~~ (deprecated)
+    * ~~removeFromScoreBlackList~~ (deprecated)
+    * ~~addImportWhiteList~~ (deprecated)
+    * ~~removeImportWhiteList~~ (deprecated)
+    * ~~updateServiceConfig~~ (deprecated)
+    * ~~setRevision~~ (deprecated)
+    * [registerProposal](#registerproposal)
+    * [cancelProposal](#cancelproposal)
+    * [voteProposal](#voteproposal)
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
-    * [StepCostChanged](#stepcostchanged)
-    * [MaxStepLimitChanged](#maxsteplimitchanged)
-    * [AddImportWhiteListLog](#addimportwhitelistlog)
-    * [RemoveImportWhiteListLog](#removeimportwhitelistlog)
-    * [UpdateServiceConfigLog](#updateserviceconfiglog)
+    * ~~StepCostChanged~~ (deprecated)
+    * ~~MaxStepLimitChanged~~ (deprecated)
+    * ~~AddImportWhiteListLog~~ (deprecated)
+    * ~~RemoveImportWhiteList~~ (deprecated)
+    * ~~UpdateServiceConfigLog~~ (deprecated)
+    * [RevisionChanged](#revisionchanged)
+    * [MaliciousScore](#maliciousscore)
+    * [PRepDisqualified](#prepdisqualified)
+    * [NetworkProposalRegistered](#networkproposalregistered)
+    * [NetworkProposalCanceled](#networkproposalcanceled)
+    * [NetworkProposalVoted](#networkproposalvoted)
+    * [NetworkProposalApproved](#networkproposalapproved)
 
 # Query Methods
 
@@ -96,7 +109,7 @@ Query method does not change state. Read-only.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | a SCORE address to check the status |
+| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address whose status be checked |
 
 ### Examples
 
@@ -210,6 +223,7 @@ Query method does not change state. Read-only.
 #### Response: (Fee 2.0) SCORE deposit status
 
 `depositInfo` field will be shown when there is a deposit in the SCORE.
+
 ```json
 {
     "jsonrpc": "2.0",
@@ -654,91 +668,183 @@ None
 }
 ```
 
+## getProposal
+
+* Query information about the network proposal.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| id| [T\_HASH](#T_HASH) | Transaction hash of the registered network proposal |
+
+### Returns
+
+`T_DICT` - Information of the network proposal in dict
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 100,
+    "method": "icx_call",
+    "params": {
+        "version": "0x3",
+        "from": "hx8f21e5c54f006b6a5d5fe65486908592151a7c57",
+        "to": "cx0000000000000000000000000000000000000001",
+        "timestamp": "0x563a6cf330136",
+        "dataType": "call",
+        "data": {
+            "method": "getProposal",
+            "params": {
+                "id": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+            }
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 100,
+    "result": {
+        "id" : "0xb903239f8543d0..",
+        "proposer" : "hxbe258ceb872e08851f1f59694dac2558708ece11",  
+      	"proposerName" : "P-Rep A",
+      	"status" : "0x0",
+        "startBlockHeight" : "0x1",
+        "endBlockHeight" : "0x65",
+        "vote": {
+            "agree": {
+                "list":[{
+                    "id": "0xb903239f854..",
+                    "timestamp": "0x563a6cf330136",
+                    "address": "hxe7af5fcfd8dfc67530a01a0e403882687528dfcb",
+                    "name": "P-Rep B",
+                    "amount": "0x1"
+                }, .. ],
+                "amount": "0x12345"
+            },
+            "disagree": {
+                "list": [{
+                    "id": "0xa803239f854..",
+                    "timestamp": "0x563a6cf330136",
+                    "address": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                    "name": "P-Rep C",
+                    "amount": "0x1"
+                }, .. ],
+                "amount": "0x123"
+            },
+            "noVote": {
+                "list": ["hx31258ceb872e08851f1f59694dac2558708ece11", .. , "hx31258ceb872e08851f1f59694dac2558708eceff"],
+                "amount": "0x12312341234a"
+            },
+        },
+        "contents": {
+            "title": "Disqualify P-Rep C",
+            "description": "P-Rep C does not maintain node",
+            "type": "0x3",
+            "value": {
+                "address": "hxbe258ceb872e08851f1f59694dac2558708ece11"
+            }
+        }
+    }
+}
+```
+
+## getProposals
+
+* Query all of the network proposals.
+
+### Parameters
+
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| type| [T\_INT](#T_INT) | Type for querying (optional) |
+| status| [T\_INT](#T_INT) | Status for querying (optional) |
+
+### Returns
+
+`T_LIST` - List of summarized information of network proposals in dict.
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 100,
+    "method": "icx_call",
+    "params": {
+        "version": "0x3",
+        "from": "hx8f21e5c54f006b6a5d5fe65486908592151a7c57",
+        "to": "cx0000000000000000000000000000000000000001",
+        "timestamp": "0x563a6cf330136",
+        "dataType": "call",
+        "data": {
+            "method": "getProposals",
+            "params": {
+                "type": "0x3",
+                "status": "0x0"
+            }
+        }
+    }
+}
+```
+
+#### Response
+
+```json
+{  
+   "jsonrpc":"2.0",
+   "id":1234,
+   "result":{  
+      "proposals":[  
+         {  
+            "id":"0xb903239f8543..",
+            "proposer":"hxbe258ceb872e08851f1f59694dac2558708ece11",
+            "proposerName":"P-Rep A",
+            "status":"0x0",
+            "startBlockHeight":"0x1",
+            "endBlockHeight":"0x65",
+            "vote":{  
+               "agree":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               },
+               "disagree":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               },
+               "noVote":{  
+                  "count":"0x1",
+                  "amount":"0x12312341234a"
+               }
+            },
+            "contents":{  
+               "title":"Disqualify P-Rep C",
+               "description":"P-Rep C does not maintain node",
+               "type":"0x3",
+               "value":{  
+                  "address":"hxbe258ceb872e08851f1f59694dac2558708ece11"
+               }
+            }
+         }, .. ]
+   }
+}
+```
+
 
 # Invoke Methods
 
 Invoke method can initiate state transition.
-
-## acceptScore
-
-* Accepts SCORE deployment request.
-* This method can be invoked only from the addresses that are in the auditor list.
-* The accepted SCORE will be executing from the next block.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| txHash | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy transaction. |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "acceptScore",
-            "params": {
-                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
-            }
-        }
-    }
-}
-```
-
-## rejectScore
-
-* Rejects SCORE deployment request.
-* This can be invoked only from the addresses that are in the auditor list.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| txHash | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy request. |
-| reason | T\_TEXT | Reason for rejecting |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "rejectScore",
-            "params": {
-                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-                "reason": "SCORE cannot use network api"
-            }
-        }
-    }
-}
-```
 
 ## addAuditor
 
@@ -782,7 +888,7 @@ Invoke method can initiate state transition.
 
 ## removeAuditor
 
-* Removes an address from the auditor list.
+* Removes the address from the auditor list.
 * The address removed from the auditor list cannot call `acceptScore` and `rejectScore` afterward.
 * This function can be invoked only by either Governance SCORE owner or the auditor herself.
 
@@ -790,7 +896,7 @@ Invoke method can initiate state transition.
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address that is in the auditor list |
+| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address in the auditor list |
 
 ### Examples
 
@@ -820,16 +926,46 @@ Invoke method can initiate state transition.
 }
 ```
 
-## setStepPrice
+## registerProposal
 
-* Sets the current step price in loop.
-* Only the owner of the Governance SCORE can call this function.
+* Register the network proposal
+* This function can be invoked only by the main P-Reps.
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| stepPrice | [T\_INT](#T_INT) | step price in loop (1 ICX == 10^18 loop) |
+| title | [T\_STR](#T_STR) | Title of the network proposal |
+| description | [T\_STR](#T_STR) | Description of the network proposal                          |
+| type        | [T\_INT](#T_INT) | Type of the network proposal                                 |
+| value | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
+
+#### value for type 0x0 (Text)
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| value | [T\_STR](#T_STR) | Text value |
+
+#### value for type 0x1 (Revision)
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| code | [T\_INT](#T_INT) | Revision code |
+| name | [T\_STR](#T_STR) | Revision name |
+
+#### value for type 0x2 (Malicious SCORE)
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address |
+| type | [T\_INT](#T_INT) | 0x0: Freeze, 0x1: Unfreeze |
+
+#### value for type 0x3 (P-Rep disqualification)
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address of main/sub P-Rep |
+
+#### value for type 0x4 (StepPrice)
+| Key | Value Type | Description |
+|:----|:-----------|-----|
+| value | [T\_INT](#T_INT) | An integer of the step price in loop |
 
 ### Examples
 
@@ -838,38 +974,40 @@ Invoke method can initiate state transition.
 ```json
 {
     "jsonrpc": "2.0",
-    "id": 100,
+    "id": 1234,
     "method": "icx_sendTransaction",
     "params": {
         "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "from": "hx8f21e5c54f006b6a5d5fe65486908592151a7c57",
         "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
+        "stepLimit": "0x12345",
         "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "nid": "0x3",
+        "nonce": "0x0",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m5...",
         "dataType": "call",
         "data": {
-            "method": "setStepPrice",
+            "method": "registerProposal",
             "params": {
-                "stepPrice": "0x2540be400"
+                "title": "Disqualify P-Rep A",
+                "description": "P-Rep A does not maintain node",
+                "type": "0x3",
+                "value": "0x7b2261646472657373223a2022.."
             }
         }
     }
 }
 ```
 
-## setStepCost
+## cancelProposal
 
-* Sets the step cost for a specific action of SCORE.
-* Only the owner of the Governance SCORE can call this function.
+* Cancel the network proposal
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| stepType | [T\_STRING](#T_STRING) | action type |
-| cost | [T\_INT](#T_INT) | step cost for the type |
+| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to cancel |
 
 ### Examples
 
@@ -890,27 +1028,25 @@ Invoke method can initiate state transition.
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
         "dataType": "call",
         "data": {
-            "method": "setStepCost",
+            "method": "cancelProposal",
             "params": {
-                "stepType": "apiCall",
-                "cost": "0x2710"
+                "id": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
             }
         }
     }
 }
 ```
 
-## setMaxStepLimit
+## voteProposal
 
-* Sets the maximum step limit value.
-* Only the owner can call this function.
+* vote on the network proposal
 
 ### Parameters
 
 | Key | Value Type | Description |
 |:----|:-----------|-----|
-| contextType | [T\_STRING](#T_STRING) | 'invoke' for sendTransaction, 'query' for call |
-| value | [T\_INT](#T_INT) | max value for the context |
+| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to vote |
+| vote | [T\_INT](#T_INT) | 0x0: Disagree, 0x1: Agree |
 
 ### Examples
 
@@ -931,339 +1067,10 @@ Invoke method can initiate state transition.
         "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
         "dataType": "call",
         "data": {
-            "method": "setMaxStepLimit",
-            "params": {
-                "contextType": "invoke",
-                "value": "0x9502f900"
-            }
-        }
-    }
-}
-```
-
-## addDeployer
-
-* Adds a new address to the deployer list.
-* Deployer has the authority to register any SCORE without going through the audit process.
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | New EOA address that will be added to the deployer list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "addDeployer",
-            "params": {
-                "address": "hx2d54d5ca2a1dffbcfc3fb2c86cc07cb826f6b931"
-            }
-        }
-    }
-}
-```
-
-## removeDeployer
-
-* Removes an address from the deployer list.
-* The address removed from the deployer list cannot register SCORE afterward.
-* This function can be invoked only by either Governance SCORE owner or the deployer herself.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address that is in the deployer list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "removeDeployer",
-            "params": {
-                "address": "hx2d54d5ca2a1dffbcfc3fb2c86cc07cb826f6b931"
-            }
-        }
-    }
-}
-```
-
-## addToScoreBlackList
-
-* Adds a new SCORE address to the black list, which is causing fatal problems in the network.
-* SCOREs in the block list will not be invoked afterward. 
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | New SCORE address that will be added to the black list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "addToScoreBlackList",
-            "params": {
-                "address": "cx2d54d5ca2a1dffbcfc3fb2c86cc07cb826f6b931"
-            }
-        }
-    }
-}
-```
-
-## removeFromScoreBlackList
-
-* Removes the SCORE address from the black list.
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address that is in the black list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "removeFromScoreBlackList",
-            "params": {
-                "address": "cx2d54d5ca2a1dffbcfc3fb2c86cc07cb826f6b931"
-            }
-        }
-    }
-}
-```
-
-## addImportWhiteList
-
-* Adds a new import statement to the import white list
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | New import statement that will be added to the import white list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "addImportWhiteList",
-            "params": {
-                "importStmt": "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}"
-            }
-        }
-    }
-}
-```
-
-## removeImportWhiteList
-
-* Removes the import statement from the import white list.
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement that is in the import white list |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "removeImportWhiteList",
-            "params": {
-                "importStmt": "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}"
-            }
-        }
-    }
-}
-```
-
-## updateServiceConfig
-
-* Updates the service config.
-* This value is implemented using BitFlag
-* Only the owner of the Governance SCORE can call this function.
-
-### IconServiceConfig
-| Key | BitFlag Value | Description |
-|----|----|----|
-| FEE | 1 | Enable Fee |
-| AUDIT | 2 | Enable Audit |
-| DEPLOYER\_WHITE\_LIST | 4 | Enable DeployerWhiteList |
-| SCORE\_PACKAGE\_VALIDATOR | 8 | Enable SCORE Package Validator |
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| serviceFlag | [T\_INT](#T_INT) | flag for update service config|
-
-### Examples
-* Set value 3 if you want to activate service about Fee and Audit
-* Set value 8 if you want to activate service about only SCORE Package Validator
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "updateServiceConfig",
-            "params": {
-                "serviceFlag": "0x1"
-            }
-        }
-    }
-}
-```
-
-## setRevision
-
-* Sets the revision number and name.
-* The revision number should be increased.
-* Only the owner of the Governance SCORE can call this function.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| code | [T\_INT](#T_INT) | revision number |
-| name | [T\_STRING](#T_STRING) | revision name |
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_sendTransaction",
-    "params": {
-        "version": "0x3",
-        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        "to": "cx0000000000000000000000000000000000000001",
-        "stepLimit": "0x30000",
-        "timestamp": "0x563a6cf330136",
-        "nonce": "0x1",
-        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
-        "dataType": "call",
-        "data": {
-            "method": "setRevision",
-            "params": {
-                "code": "0x4",
-                "name": "1.2.3"
+            "method": "voteProposal",
+            "parmas": {
+                "id" : "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+                "vote" : "0x1"
             }
         }
     }
@@ -1295,7 +1102,7 @@ def Rejected(self, txHash: str, reason: str):
 
 ## StepPriceChanged
 
-Triggered on any successful setStepPrice transaction.
+Triggered on vote transaction approving 'Step Price' network proposal.
 
 ```python
 @eventlog(indexed=1)
@@ -1303,52 +1110,72 @@ def StepPriceChanged(self, stepPrice: int):
     pass
 ```
 
-## StepCostChanged
+## RevisionChanged
 
-Triggered on any successful setStepCost transaction.
-
-```python
-@eventlog(indexed=1)
-def StepCostChanged(self, stepType: str, cost: int):
-    pass
-```
-
-## MaxStepLimitChanged
-
-Triggered on any successful setMaxStepLimit transaction.
-
-```python
-@eventlog(indexed=1)
-def MaxStepLimitChanged(self, contextType: str, value: int):
-    pass
-```
-
-## AddImportWhiteListLog
-
-Trigger on addImportWhiteList transaction change import white list.
+Triggered on vote transaction approving 'Revision' network proposal.
 
 ```python
 @eventlog(indexed=0)
-def AddImportWhiteListLog(self, add_list: str, add_count: int):
+    def RevisionChanged(self, revisionCode: int, revisionName: str):
     pass
 ```
 
-## RemoveImportWhiteListLog
+## MaliciousSCORE
 
-Trigger on removeImportWhiteList transaction change import white list.
+Triggered on vote transaction approving 'Malicious SCORE' network proposal.
 
 ```python
 @eventlog(indexed=0)
-def RemoveImportWhiteListLog(self, remove_list: str, remove_count: int):
+def MaliciousScore(self, address: Address, unfreeze: int):
     pass
 ```
 
-## UpdateServiceConfigLog
+## PRepDisqualified
 
-Trigger on updateServiceConfig transaction.
+Triggered on vote transaction approving 'P-Rep Disqualification' network proposal.
 
 ```python
 @eventlog(indexed=0)
-def UpdateServiceConfigLog(self, serviceFlag: int):
+def PRepDisqualified(self, address: Address, success: bool, reason: str):
+    pass
+```
+
+## NetworkProposalRegistered
+
+Triggered on any successful registerProposal transaction.
+
+```python
+@eventlog(indexed=0)
+def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
+    pass
+```
+
+## NetworkProposalCanceled
+
+Triggered on any successful cancelProposal transaction.
+
+```python
+@eventlog(indexed=0)
+def NetworkProposalCanceled(self, id: bytes):
+    pass
+```
+
+## NetworkProposalVoted
+
+Triggered on any successful voteProposal transaction.
+
+```python
+@eventlog(indexed=0)
+def NetworkProposalVoted(self, id: bytes, vote: int, voter: Address):
+    pass
+```
+
+## NetworkProposalApproved
+
+Triggered on any successful voteProposal transaction approving network proposal.
+
+```python
+@eventlog(indexed=0)
+def NetworkProposalApproved(self, id: bytes):
     pass
 ```

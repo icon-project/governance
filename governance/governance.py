@@ -16,6 +16,8 @@
 
 from iconservice import *
 
+from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
+
 TAG = 'Governance'
 DEBUG = False
 
@@ -134,28 +136,32 @@ class Governance(IconSystemScoreBase):
     def StepPriceChanged(self, stepPrice: int):
         pass
 
-    @eventlog(indexed=1)
-    def StepCostChanged(self, stepType: str, cost: int):
-        pass
-
-    @eventlog(indexed=1)
-    def MaxStepLimitChanged(self, contextType: str, value: int):
-        pass
-
-    @eventlog(indexed=0)
-    def AddImportWhiteListLog(self, addList: str, addCount: int):
-        pass
-
-    @eventlog(indexed=0)
-    def RemoveImportWhiteListLog(self, removeList: str, removeCount: int):
-        pass
-
-    @eventlog(indexed=0)
-    def UpdateServiceConfigLog(self, serviceFlag: int):
-        pass
-
     @eventlog(indexed=0)
     def RevisionChanged(self, revisionCode: int, revisionName: str):
+        pass
+
+    @eventlog(indexed=0)
+    def MaliciousScore(self, address: Address, unfreeze: int):
+        pass
+
+    @eventlog(indexed=0)
+    def PRepDisqualified(self, address: Address, success: bool, reason: str):
+        pass
+
+    @eventlog(indexed=0)
+    def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
+        pass
+
+    @eventlog(indexed=0)
+    def NetworkProposalCanceled(self, id: bytes):
+        pass
+
+    @eventlog(indexed=0)
+    def NetworkProposalVoted(self, id: bytes, vote: int, voter: Address):
+        pass
+
+    @eventlog(indexed=0)
+    def NetworkProposalApproved(self, id: bytes):
         pass
 
     @property
@@ -187,6 +193,7 @@ class Governance(IconSystemScoreBase):
         self._reject_status = DictDB(self._REJECT_STATUS, db, value_type=bytes)
         self._revision_code = VarDB(self._REVISION_CODE, db, value_type=int)
         self._revision_name = VarDB(self._REVISION_NAME, db, value_type=str)
+        self._network_proposal = NetworkProposal(db)
 
     def on_install(self, stepPrice: int = 10 ** 10) -> None:
         super().on_install()
@@ -281,7 +288,7 @@ class Governance(IconSystemScoreBase):
 
         deploy_info = self.get_deploy_info(address)
         if deploy_info is None:
-            self.revert('SCORE not found')
+            revert('SCORE not found')
 
         current_tx_hash = deploy_info.current_tx_hash
         next_tx_hash = deploy_info.next_tx_hash
@@ -361,38 +368,29 @@ class Governance(IconSystemScoreBase):
         return self._step_price.get()
 
     @external
-    def setStepPrice(self, stepPrice: int):
-        # only owner can set new step price
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-        if stepPrice > 0:
-            self._step_price.set(stepPrice)
-            self.StepPriceChanged(stepPrice)
-
-    @external
     def acceptScore(self, txHash: bytes):
         # check message sender
         Logger.debug(f'acceptScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
-            self.revert('Invalid sender: no permission')
+            revert('Invalid sender: no permission')
 
         # check txHash
         tx_params = self.get_deploy_tx_params(txHash)
         if tx_params is None:
-            self.revert('Invalid txHash: None')
+            revert('Invalid txHash: None')
 
         deploy_score_addr = tx_params.score_address
         deploy_info = self.get_deploy_info(deploy_score_addr)
         if txHash != deploy_info.next_tx_hash:
-            self.revert('Invalid txHash: mismatch')
+            revert('Invalid txHash: mismatch')
 
         next_audit_tx_hash = self._audit_status[txHash]
         if next_audit_tx_hash:
-            self.revert('Invalid txHash: already accepted')
+            revert('Invalid txHash: already accepted')
 
         next_reject_tx_hash = self._reject_status[txHash]
         if next_reject_tx_hash:
-            self.revert('Invalid txHash: already rejected')
+            revert('Invalid txHash: already rejected')
 
         self._deploy(txHash, deploy_score_addr)
 
@@ -416,20 +414,20 @@ class Governance(IconSystemScoreBase):
         # check message sender
         Logger.debug(f'rejectScore: msg.sender = "{self.msg.sender}"', TAG)
         if self.msg.sender not in self._auditor_list:
-            self.revert('Invalid sender: no permission')
+            revert('Invalid sender: no permission')
 
         # check txHash
         tx_params = self.get_deploy_tx_params(txHash)
         if tx_params is None:
-            self.revert('Invalid txHash')
+            revert('Invalid txHash')
 
         next_audit_tx_hash = self._audit_status[txHash]
         if next_audit_tx_hash:
-            self.revert('Invalid txHash: already accepted')
+            revert('Invalid txHash: already accepted')
 
         next_reject_tx_hash = self._reject_status[txHash]
         if next_reject_tx_hash:
-            self.revert('Invalid txHash: already rejected')
+            revert('Invalid txHash: already rejected')
 
         Logger.debug(f'rejectScore: score_address = "{tx_params.score_address}", reason = {reason}', TAG)
 
@@ -440,27 +438,27 @@ class Governance(IconSystemScoreBase):
     @external
     def addAuditor(self, address: Address):
         if address.is_contract:
-            self.revert(f'Invalid EOA Address: {address}')
+            revert(f'Invalid EOA Address: {address}')
         # check message sender, only owner can add new auditor
         if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
+            revert('Invalid sender: not owner')
         if address not in self._auditor_list:
             self._auditor_list.put(address)
         else:
-            self.revert(f'Invalid address: already auditor')
+            revert(f'Invalid address: already auditor')
         if DEBUG is True:
             self._print_auditor_list('addAuditor')
 
     @external
     def removeAuditor(self, address: Address):
         if address.is_contract:
-            self.revert(f'Invalid EOA Address: {address}')
+            revert(f'Invalid EOA Address: {address}')
         if address not in self._auditor_list:
-            self.revert('Invalid address: not in list')
+            revert('Invalid address: not in list')
         # check message sender
         if self.msg.sender != self.owner:
             if self.msg.sender != address:
-                self.revert('Invalid sender: not yourself')
+                revert('Invalid sender: not yourself')
         # get the topmost value
         top = self._auditor_list.pop()
         if top != address:
@@ -475,80 +473,43 @@ class Governance(IconSystemScoreBase):
         for auditor in self._auditor_list:
             Logger.debug(f' --- {auditor}', TAG)
 
-    @external
-    def addDeployer(self, address: Address):
-        if address.is_contract:
-            self.revert(f'Invalid EOA Address: {address}')
-        # check message sender, only owner can add new deployer
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-        if address not in self._deployer_list:
-            self._deployer_list.put(address)
-        else:
-            self.revert(f'Invalid address: already deployer')
-        if DEBUG is True:
-            self._print_deployer_list('addDeployer')
-
-    @external
-    def removeDeployer(self, address: Address):
-        if address.is_contract:
-            self.revert(f'Invalid EOA Address: {address}')
-        if address not in self._deployer_list:
-            self.revert('Invalid address: not in list')
-        # check message sender
-        if self.msg.sender != self.owner:
-            if self.msg.sender != address:
-                self.revert('Invalid sender: not yourself')
-        # get the topmost value
-        top = self._deployer_list.pop()
-        if top != address:
-            for i in range(len(self._deployer_list)):
-                if self._deployer_list[i] == address:
-                    self._deployer_list[i] = top
-        if DEBUG is True:
-            self._print_deployer_list('removeDeployer')
-
     @external(readonly=True)
     def isDeployer(self, address: Address) -> bool:
         Logger.debug(f'isDeployer address: {address}', TAG)
         return address in self._deployer_list
 
-    def _print_deployer_list(self, header: str):
-        Logger.debug(f'{header}: list len = {len(self._deployer_list)}', TAG)
-        for deployer in self._deployer_list:
-            Logger.debug(f' --- {deployer}', TAG)
-
-    @external
-    def addToScoreBlackList(self, address: Address):
+    def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
-            self.revert(f'Invalid SCORE Address: {address}')
-        # check message sender, only owner can add new blacklist
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
+            revert(f'Invalid SCORE Address: {address}')
+
         if self.address == address:
-            self.revert("can't add myself")
+            revert("can't add myself")
+
         if address not in self._score_black_list:
             self._score_black_list.put(address)
+            self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
-            self.revert('Invalid address: already SCORE blacklist')
+            revert('Invalid address: already SCORE blacklist')
+
         if DEBUG is True:
             self._print_black_list('addScoreToBlackList')
 
-    @external
-    def removeFromScoreBlackList(self, address: Address):
+    def _removeFromScoreBlackList(self, address: Address):
         if not address.is_contract:
-            self.revert(f'Invalid SCORE Address: {address}')
-        # check message sender, only owner can remove from blacklist
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
+            revert(f'Invalid SCORE Address: {address}')
+
         if address not in self._score_black_list:
-            self.revert('Invalid address: not in list')
+            revert('Invalid address: not in list')
+
         # get the topmost value
         top = self._score_black_list.pop()
         if top != address:
             for i in range(len(self._score_black_list)):
                 if self._score_black_list[i] == address:
                     self._score_black_list[i] = top
+
+        self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
+
         if DEBUG is True:
             self._print_black_list('removeScoreFromBlackList')
 
@@ -596,34 +557,9 @@ class Governance(IconSystemScoreBase):
             result[key] = value
         return result
 
-    @external
-    def setStepCost(self, stepType: str, cost: int):
-        # only owner can set new step cost
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-        if cost < 0:
-            if stepType != STEP_TYPE_CONTRACT_DESTRUCT and \
-                    stepType != STEP_TYPE_DELETE:
-                self.revert(f'Invalid step cost: {stepType}, {cost}')
-        self._step_costs[stepType] = cost
-        self.StepCostChanged(stepType, cost)
-
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
         return self._max_step_limits[contextType]
-
-    @external
-    def setMaxStepLimit(self, contextType: str, value: int):
-        # only owner can set new context type value
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-        if value < 0:
-            self.revert('Invalid value: negative number')
-        if contextType == CONTEXT_TYPE_INVOKE or contextType == CONTEXT_TYPE_QUERY:
-            self._max_step_limits[contextType] = value
-            self.MaxStepLimitChanged(contextType, value)
-        else:
-            self.revert("Invalid context type")
 
     @external(readonly=True)
     def getVersion(self) -> str:
@@ -635,121 +571,6 @@ class Governance(IconSystemScoreBase):
         if self._import_white_list[key] == "":
             self._import_white_list[key] = "*"
             self._import_white_list_keys.put(key)
-
-    @external
-    def addImportWhiteList(self, importStmt: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-        import_stmt_dict = {}
-        try:
-            import_stmt_dict: dict = self._check_import_stmt(importStmt)
-        except Exception as e:
-            self.revert(f'Invalid import statement: {e}')
-        # add to import white list
-        log_entry = []
-        for key, value in import_stmt_dict.items():
-            old_value: str = self._import_white_list[key]
-            if old_value == "*":
-                # no need to add
-                continue
-
-            if len(value) == 0:
-                # set import white list as ALL
-                self._import_white_list[key] = "*"
-
-                # add to import white list keys
-                if old_value == "":
-                    self._import_white_list_keys.put(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, value))
-            elif old_value == "":
-                # set import white list
-                self._import_white_list[key] = ','.join(value)
-                # add to import white list keys
-                self._import_white_list_keys.put(key)
-                # make added item list for eventlog
-                log_entry.append((key, value))
-            else:
-                old_value_list = old_value.split(',')
-                new_value = []
-                for v in value:
-                    if v not in old_value_list:
-                        new_value.append(v)
-
-                # set import white list
-                self._import_white_list[key] = f'{old_value},{",".join(new_value)}'
-
-                # make added item list for eventlog
-                log_entry.append((key, new_value))
-
-        # make eventlog
-        if len(log_entry):
-            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
-
-        if DEBUG is True:
-            Logger.debug(f'checking added item ({importStmt}): {self.isInImportWhiteList(importStmt)}')
-
-    @external
-    def removeImportWhiteList(self, importStmt: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-
-        import_stmt_dict = {}
-        try:
-            import_stmt_dict: dict = self._check_import_stmt(importStmt)
-        except Exception as e:
-            self.revert(f'Invalid import statement: {e}')
-
-        # remove from import white list
-        log_entry = []
-        for key, value in import_stmt_dict.items():
-            old_value: str = self._import_white_list[key]
-            if old_value == "*":
-                if len(value) == 0:
-                    # remove import white list
-                    self._remove_import_white_list(key)
-
-                    # make added item list for eventlog
-                    log_entry.append((key, value))
-                continue
-
-            if len(value) == 0:
-                # remove import white list
-                self._remove_import_white_list(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, value))
-
-                # add to import white list keys
-                self._import_white_list_keys.put(key)
-            else:
-                old_value_list = old_value.split(',')
-                remove_value = []
-                new_value = []
-                for v in old_value_list:
-                    if v in value:
-                        remove_value.append(v)
-                    else:
-                        new_value.append(v)
-
-                # set import white list
-                if len(new_value):
-                    self._import_white_list[key] = f'{",".join(new_value)}'
-                else:
-                    self._remove_import_white_list(key)
-
-                # make added item list for eventlog
-                log_entry.append((key, remove_value))
-
-        if len(log_entry):
-            # make eventlog
-            self.AddImportWhiteListLog(str(log_entry), len(log_entry))
-
-        if DEBUG is True:
-            Logger.debug(f'checking removed item ({importStmt}): {self.isInImportWhiteList(importStmt)}')
 
     @external(readonly=True)
     def isInImportWhiteList(self, importStmt: str) -> bool:
@@ -820,32 +641,6 @@ class Governance(IconSystemScoreBase):
     def _set_initial_service_config(self):
         self._service_config.set(self.get_icon_service_flag() | 8)
 
-    @external
-    def updateServiceConfig(self, serviceFlag: int):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
-
-        if serviceFlag < 0:
-            self.revert(f'updateServiceConfig: serviceFlag({serviceFlag}) < 0')
-
-        max_flag = 0
-        for flag in IconServiceFlag:
-            max_flag |= flag
-
-        if serviceFlag > max_flag:
-            self.revert(f'updateServiceConfig: serviceFlag({serviceFlag}) > max_flag({max_flag})')
-
-        prev_service_config = self._service_config.get()
-        if prev_service_config != serviceFlag:
-            self._service_config.set(serviceFlag)
-            self.UpdateServiceConfigLog(serviceFlag)
-            if DEBUG is True:
-                Logger.debug(f'updateServiceConfig (prev: {prev_service_config} flag: {serviceFlag})')
-        else:
-            if DEBUG is True:
-                Logger.debug(f'updateServiceConfig not update ({serviceFlag})')
-
     @external(readonly=True)
     def getServiceConfig(self) -> dict:
         table = {}
@@ -858,15 +653,16 @@ class Governance(IconSystemScoreBase):
                 table[flag.name] = False
         return table
 
-    @external
-    def setRevision(self, code: int, name: str):
-        # only owner can add import white list
-        if self.msg.sender != self.owner:
-            self.revert('Invalid sender: not owner')
+    def _set_revision(self, code: str, name: str):
+        # check message sender, only main P-Rep can add new blacklist
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
 
+        code = int(code, 16)
         prev_code = self._revision_code.get()
         if code < prev_code:
-            self.revert(f"can't decrease code")
+            revert(f"can't decrease code")
 
         self._revision_code.set(code)
         self._revision_name.set(name)
@@ -875,3 +671,147 @@ class Governance(IconSystemScoreBase):
     @external(readonly=True)
     def getRevision(self) -> dict:
         return {'code': self._revision_code.get(), 'name': self._revision_name.get()}
+
+    @external
+    def registerProposal(self, title: str, description: str, type: int, value: bytes):
+        """ Register a Proposal with information like description, type and value by main prep
+
+        :param title: title of the proposal
+        :param description: description of the proposal
+        :param type: proposal type
+        :param value: encoded value
+        :return: None
+        """
+        main_preps, expire_block_height = get_main_prep_info()
+
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        if expire_block_height < self.block_height:
+            revert("Invalid main P-Rep term information")
+
+        value_in_dict = json_loads(value.decode())
+        self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
+                                                 title, description, type, value_in_dict, main_preps)
+
+        self.NetworkProposalRegistered(title, description, type, value, self.msg.sender)
+
+    @external
+    def cancelProposal(self, id: bytes):
+        """ Cancel Proposal if it have not been approved
+
+        :param id: transaction hash to generate when registering proposal
+        :return: None
+        """
+        main_preps, _ = get_main_prep_info()
+
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        self._network_proposal.cancel_proposal(id, self.msg.sender, self.block_height)
+
+        self.NetworkProposalCanceled(id)
+
+    @external
+    def voteProposal(self, id: bytes, vote: int):
+        """ Vote for Proposal - agree or disagree
+
+        :param id: transaction hash to generate when registering proposal
+        :param vote: agree(1) or disagree(0)
+        :return: None
+        """
+        main_preps, _ = get_main_prep_info()
+
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        approved, proposal_type, value = self._network_proposal.vote_proposal(id, self.msg.sender,
+                                                                              vote,
+                                                                              self.block_height,
+                                                                              self.tx.hash,
+                                                                              self.tx.timestamp,
+                                                                              main_preps)
+
+        self.NetworkProposalVoted(id, vote, self.msg.sender)
+
+        if approved is True:
+            self.NetworkProposalApproved(id)
+
+            # value dict has str key, value. convert str value to appropriate type to use
+            if proposal_type == NetworkProposalType.TEXT:
+                return
+            elif proposal_type == NetworkProposalType.REVISION:
+                self._set_revision(**value)
+            elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
+                self._malicious_score(**value)
+            elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
+                self._disqualify_prep(**value)
+            elif proposal_type == NetworkProposalType.STEP_PRICE:
+                self._set_step_price(**value)
+
+    @external(readonly=True)
+    def getProposal(self, id: bytes) -> dict:
+        """ Get Proposal info as dict
+
+        :param id: transaction hash to generate when registering proposal
+        :return: proposal information in dict
+        """
+        proposal_info = self._network_proposal.get_proposal(id, self.block_height)
+        return proposal_info
+
+    @external(readonly=True)
+    def getProposals(self, type: int = None, status: int = None) -> dict:
+        """ Get all of proposals in list
+
+        :param type: type of network proposal to filter (optional)
+        :param status: status of network proposal to filter (optional)
+        :return: proposal list in dict
+        """
+        return self._network_proposal.get_proposals(self.block_height, type, status)
+
+    def _check_main_prep(self, address: 'Address', main_preps: list) -> bool:
+        """ Check if the address is main prep
+
+        :param address: address to be checked
+        :param main_preps: list of main preps
+        :return: bool value to be checked if it is one of main preps or not
+        """
+        for prep in main_preps:
+            if prep.address == address:
+                return True
+        return False
+
+    def _malicious_score(self, address: str, type: str):
+        # check message sender, only main P-Rep can modify SCORE blacklist
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        converted_address = Address.from_string(address)
+        converted_type = int(type, 16)
+        if converted_type == MaliciousScoreType.FREEZE:
+            self._addToScoreBlackList(converted_address)
+        elif converted_type == MaliciousScoreType.UNFREEZE:
+            self._removeFromScoreBlackList(converted_address)
+
+    def _disqualify_prep(self, address: str):
+        # check message sender, only main P-Rep can disqualify P-Rep
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        address = Address.from_string(address)
+
+        success, reason = self.disqualify_prep(address)
+        self.PRepDisqualified(address, success, reason)
+
+    def _set_step_price(self, value: str):
+        # check message sender, only main P-Rep can set step price
+        main_preps, _ = get_main_prep_info()
+        if not self._check_main_prep(self.msg.sender, main_preps):
+            revert("No permission - only for main prep")
+
+        step_price = int(value, 16)
+        if step_price > 0:
+            self._step_price.set(step_price)
+            self.StepPriceChanged(step_price)
