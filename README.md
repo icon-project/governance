@@ -846,6 +846,87 @@ None
 
 Invoke method can initiate state transition.
 
+## acceptScore
+
+* Accepts SCORE deployment request.
+* This method can be invoked only from the addresses that are in the auditor list.
+* The accepted SCORE will be executing from the next block.
+
+### Parameters
+
+| Key    | Value Type         | Description                                       |
+| :----- | :----------------- | ------------------------------------------------- |
+| txHash | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy transaction. |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "acceptScore",
+            "params": {
+                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+            }
+        }
+    }
+}
+```
+
+## rejectScore
+
+* Rejects SCORE deployment request.
+* This can be invoked only from the addresses that are in the auditor list.
+
+### Parameters
+
+| Key    | Value Type         | Description                                   |
+| :----- | :----------------- | --------------------------------------------- |
+| txHash | [T\_HASH](#T_HASH) | Transaction hash of the SCORE deploy request. |
+| reason | T\_TEXT            | Reason for rejecting                          |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1234,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x12345",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "rejectScore",
+            "params": {
+                "txHash": "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+                "reason": "SCORE cannot use network api"
+            }
+        }
+    }
+}
+```
+
 ## addAuditor
 
 * Adds a new address to the auditor list.
