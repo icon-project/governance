@@ -68,61 +68,14 @@ class SystemInterface(InterfaceScore):
     def getScoreDepositInfo(self, address: Address) -> dict: pass
 
 
-class StepCosts:
-    """
-    DB for stepCosts management.
-    It is combined DictDB and ArrayDB in order to iterate items.
-    """
-    _STEP_TYPES = 'step_types'
-    _STEP_COSTS = 'step_costs'
-
-    def __init__(self, db: IconScoreDatabase):
-        self._step_types = ArrayDB(self._STEP_TYPES, db, value_type=str)
-        self._step_costs = DictDB(self._STEP_COSTS, db, value_type=int)
-
-    def __setitem__(self, step_type: str, cost: int):
-        if step_type not in self._step_costs:
-            self._step_types.put(step_type)
-
-        self._step_costs[step_type] = cost
-
-    def __getitem__(self, step_type: str):
-        return self._step_costs[step_type]
-
-    def __delitem__(self, step_type: str):
-        # delete does not actually do delete but set zero
-        if step_type in self._step_costs:
-            self._step_costs[step_type] = 0
-
-    def __contains__(self, step_type: str):
-        return step_type in self._step_costs
-
-    def __iter__(self):
-        return self._step_types.__iter__()
-
-    def __len__(self):
-        return self._step_types.__len__()
-
-    def items(self):
-        for step_type in self._step_types:
-            yield (step_type, self._step_costs[step_type])
-
-
 class Governance(IconSystemScoreBase):
     _SCORE_STATUS = 'score_status'  # legacy
     _AUDITOR_LIST = 'auditor_list'
     _DEPLOYER_LIST = 'deployer_list'
-    _SCORE_BLACK_LIST = 'score_black_list'
-    _STEP_PRICE = 'step_price'
-    _MAX_STEP_LIMITS = 'max_step_limits'
     _VERSION = 'version'
-    _IMPORT_WHITE_LIST = 'import_white_list'
-    _IMPORT_WHITE_LIST_KEYS = 'import_white_list_keys'
     _SERVICE_CONFIG = 'service_config'
     _AUDIT_STATUS = 'audit_status'
     _REJECT_STATUS = 'reject_status'
-    _REVISION_CODE = 'revision_code'
-    _REVISION_NAME = 'revision_name'
 
     @eventlog(indexed=1)
     def Accepted(self, txHash: str):
@@ -164,56 +117,17 @@ class Governance(IconSystemScoreBase):
     def NetworkProposalApproved(self, id: bytes):
         pass
 
-    @property
-    def import_white_list_cache(self) -> dict:
-        return self._get_import_white_list()
-
-    @property
-    def service_config(self) -> int:
-        return self._service_config.get()
-
-    @property
-    def revision_code(self) -> int:
-        return self._revision_code.get()
-
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         # self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
-        self._deployer_list = ArrayDB(self._DEPLOYER_LIST, db, value_type=Address)
-        self._score_black_list = ArrayDB(self._SCORE_BLACK_LIST, db, value_type=Address)
-        self._step_price = VarDB(self._STEP_PRICE, db, value_type=int)
-        self._step_costs = StepCosts(db)
-        self._max_step_limits = DictDB(self._MAX_STEP_LIMITS, db, value_type=int)
-        self._version = VarDB(self._VERSION, db, value_type=str)
-        self._import_white_list = DictDB(self._IMPORT_WHITE_LIST, db, value_type=str)
-        self._import_white_list_keys = ArrayDB(self._IMPORT_WHITE_LIST_KEYS, db, value_type=str)
-        self._service_config = VarDB(self._SERVICE_CONFIG, db, value_type=int)
         self._audit_status = DictDB(self._AUDIT_STATUS, db, value_type=bytes)
         self._reject_status = DictDB(self._REJECT_STATUS, db, value_type=bytes)
-        self._revision_code = VarDB(self._REVISION_CODE, db, value_type=int)
-        self._revision_name = VarDB(self._REVISION_NAME, db, value_type=str)
-        self._network_proposal = NetworkProposal(db)
 
-    def on_install(self, stepPrice: int = 10 ** 10) -> None:
-        super().on_install()
-        # add owner into initial auditor list
-        Logger.debug(f'on_install: owner = "{self.owner}"', TAG)
-        self._auditor_list.put(self.owner)
-        # add owner into initial deployer list
-        self._deployer_list.put(self.owner)
-        # set initial step price
-        self._step_price.set(stepPrice)
-        # set initial step costs
-        self._set_initial_step_costs()
-        # set initial max step limits
-        self._set_initial_max_step_limits()
-        # set initial import white list
-        self._set_initial_import_white_list()
-        # set initial service config
-        self._set_initial_service_config()
-        # set initial revision
-        self._set_initial_revision()
+        self._deployer_list = ArrayDB(self._DEPLOYER_LIST, db, value_type=Address)
+        self._version = VarDB(self._VERSION, db, value_type=str)
+        self._network_proposal = NetworkProposal(db)
+        self._service_config = VarDB(self._SERVICE_CONFIG, db, value_type=int)
 
     def on_update(self) -> None:
         super().on_update()
@@ -228,8 +142,9 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_5()
         if self.is_less_than_target_version('0.0.6'):
             self._migrate_v0_0_6()
-
-        self._version.set('0.0.7')
+        if self.is_less_than_target_version('1.0.1'):
+            self._migrate_v1_0_1()
+        self._version.set('1.0.1')
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()
@@ -239,13 +154,15 @@ class Governance(IconSystemScoreBase):
         """
         This migration updates the step costs and max step limits
         """
-        if len(self._step_costs) == 0:
+        step_types = ArrayDB('step_types', self.db, value_type=str)
+        step_costs = DictDB('step_costs', self.db, value_type=int)
+        if len(step_types) == 0:
             # migrates from old DB of step_costs.
             for step_type in INITIAL_STEP_COST_KEYS:
-                if step_type in self._step_costs:
-                    self._step_costs._step_types.put(step_type)
+                if step_type in step_costs:
+                    step_types.put(step_type)
 
-        self._set_initial_step_costs()
+        self._set_initial_step_costs(step_types, step_costs)
 
     def _migrate_v0_0_3(self):
         self._set_initial_max_step_limits()
@@ -260,6 +177,40 @@ class Governance(IconSystemScoreBase):
 
     def _migrate_v0_0_6(self):
         pass
+
+    def _migrate_v1_0_1(self):
+        step_types = ArrayDB('step_types', self.db, value_type=str)
+        step_costs = DictDB('step_costs', self.db, value_type=int)
+        step_price = VarDB('step_price', self.db, value_type=int)
+        max_step_limits = DictDB('max_step_limits', self.db, value_type=int)
+
+        revision_code = VarDB('revision_code', self.db, value_type=int)
+        revision_name = VarDB('revision_name', self.db, value_type=str)
+
+        import_white_list = DictDB('import_white_list', self.db, value_type=str)
+        import_white_list_keys = ArrayDB('import_white_list_keys', self.db, value_type=str)
+        score_black_list = ArrayDB('score_black_list', self.db, value_type=Address)
+
+        pure_max_step_limits = {
+            CONTEXT_TYPE_INVOKE: max_step_limits[CONTEXT_TYPE_INVOKE],
+            CONTEXT_TYPE_QUERY: max_step_limits[CONTEXT_TYPE_QUERY]
+        }
+        pure_step_costs = {key: step_costs[key] for key in step_types}
+        pure_import_white_list = {key: import_white_list[key] for key in import_white_list_keys}
+        pure_score_black_list = list(score_black_list)
+
+        system_values = {
+            SystemValueType.STEP_PRICE: step_price.get(),
+            SystemValueType.STEP_COSTS: pure_step_costs,
+            SystemValueType.MAX_STEP_LIMITS: pure_max_step_limits,
+            SystemValueType.REVISION_CODE: revision_code.get(),
+            SystemValueType.REVISION_NAME: revision_name.get(),
+            SystemValueType.IMPORT_WHITE_LIST: pure_import_white_list,
+            SystemValueType.SCORE_BLACK_LIST: pure_score_black_list
+        }
+        self.migrate_system_value(system_values)
+
+        # Todo: remove all system value
 
     @staticmethod
     def _versions(version: str):
@@ -365,7 +316,7 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getStepPrice(self) -> int:
-        return self._step_price.get()
+        return self.get_system_value(SystemValueType.STEP_PRICE)
 
     @external
     def acceptScore(self, txHash: bytes):
@@ -485,45 +436,48 @@ class Governance(IconSystemScoreBase):
         if self.address == address:
             revert("can't add myself")
 
-        if address not in self._score_black_list:
-            self._score_black_list.put(address)
+        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
+        if address not in score_black_list:
+            score_black_list.append(address)
             self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
             revert('Invalid address: already SCORE blacklist')
 
         if DEBUG is True:
-            self._print_black_list('addScoreToBlackList')
+            self._print_black_list('addScoreToBlackList', score_black_list)
 
     def _removeFromScoreBlackList(self, address: Address):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
+        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
 
-        if address not in self._score_black_list:
+        if address not in score_black_list:
             revert('Invalid address: not in list')
 
         # get the topmost value
-        top = self._score_black_list.pop()
+        top = score_black_list.pop()
         if top != address:
-            for i in range(len(self._score_black_list)):
-                if self._score_black_list[i] == address:
-                    self._score_black_list[i] = top
+            for i in range(len(score_black_list)):
+                if score_black_list[i] == address:
+                    score_black_list[i] = top
 
         self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
         if DEBUG is True:
-            self._print_black_list('removeScoreFromBlackList')
+            self._print_black_list('removeScoreFromBlackList', score_black_list)
 
     @external(readonly=True)
     def isInScoreBlackList(self, address: Address) -> bool:
         Logger.debug(f'isInBlackList address: {address}', TAG)
-        return address in self._score_black_list
+        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
+        return address in score_black_list
 
-    def _print_black_list(self, header: str):
-        Logger.debug(f'{header}: list len = {len(self._score_black_list)}', TAG)
-        for addr in self._score_black_list:
+    def _print_black_list(self, header: str, score_black_list: list):
+        Logger.debug(f'{header}: list len = {len(score_black_list)}', TAG)
+        for addr in score_black_list:
             Logger.debug(f' --- {addr}', TAG)
 
-    def _set_initial_step_costs(self):
+    def _set_initial_step_costs(self, step_types, step_costs):
         initial_costs = {
             STEP_TYPE_DEFAULT: 100_000,
             STEP_TYPE_CONTRACT_CALL: 25_000,
@@ -540,37 +494,48 @@ class Governance(IconSystemScoreBase):
             STEP_TYPE_API_CALL: 0
         }
         for key, value in initial_costs.items():
-            self._step_costs[key] = value
+            if key not in step_costs:
+                step_types.put(key)
+            step_costs[key] = value
 
     def _set_initial_max_step_limits(self):
-        self._max_step_limits[CONTEXT_TYPE_INVOKE] = 2_500_000_000
-        self._max_step_limits[CONTEXT_TYPE_QUERY] = 50_000_000
+        max_step_limits = DictDB('import_white_list', self.db, value_type=str)
+        max_step_limits[CONTEXT_TYPE_INVOKE] = 2_500_000_000
+        max_step_limits[CONTEXT_TYPE_QUERY] = 50_000_000
 
     def _set_initial_revision(self):
-        self._revision_code.set(2)
-        self._revision_name.set("1.1.2")
+        revision_code = VarDB('revision_code', self.db, value_type=int)
+        revision_name = VarDB('revision_name', self.db, value_type=str)
+
+        revision_code.set(2)
+        revision_name.set("1.1.2")
 
     @external(readonly=True)
     def getStepCosts(self) -> dict:
+        step_costs: dict = self.get_system_value(SystemValueType.STEP_COSTS)
         result = {}
-        for key, value in self._step_costs.items():
+
+        for key, value in step_costs.items():
             result[key] = value
         return result
 
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
-        return self._max_step_limits[contextType]
+        max_step_limits: dict = self.get_system_value(SystemValueType.MAX_STEP_LIMITS)
+        return max_step_limits[contextType]
 
     @external(readonly=True)
     def getVersion(self) -> str:
         return self._version.get()
 
     def _set_initial_import_white_list(self):
+        import_white_list = DictDB('import_white_list', self.db, value_type=str)
+        import_white_list_keys = ArrayDB('import_white_list_keys', self.db, value_type=str)
         key = "iconservice"
         # if iconservice has no value set ALL
-        if self._import_white_list[key] == "":
-            self._import_white_list[key] = "*"
-            self._import_white_list_keys.put(key)
+        if import_white_list[key] == "":
+            import_white_list[key] = "*"
+            import_white_list_keys.put(key)
 
     @external(readonly=True)
     def isInImportWhiteList(self, importStmt: str) -> bool:
@@ -621,22 +586,13 @@ class Governance(IconSystemScoreBase):
 
     def _get_import_white_list(self) -> dict:
         whitelist = {}
-        for v in self._import_white_list_keys:
-            values: str = self._import_white_list[v]
+        import_white_list_keys = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST_KEYS)
+        import_white_list = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST)
+        for v in import_white_list_keys:
+            values: str = import_white_list[v]
             whitelist[v] = values.split(',')
 
         return whitelist
-
-    def _remove_import_white_list(self, key: str):
-        # remove from import white list
-        self._import_white_list.remove(key)
-
-        # remove from import white list keys
-        top = self._import_white_list_keys.pop()
-        if top != key:
-            for i in range(len(self._import_white_list_keys)):
-                if self._import_white_list_keys[i] == key:
-                    self._import_white_list_keys[i] = top
 
     def _set_initial_service_config(self):
         self._service_config.set(self.get_icon_service_flag() | 8)
@@ -660,17 +616,19 @@ class Governance(IconSystemScoreBase):
             revert("No permission - only for main prep")
 
         code = int(code, 16)
-        prev_code = self._revision_code.get()
+
+        prev_code = self.get_system_value(SystemValueType.REVISION_CODE)
         if code < prev_code:
             revert(f"can't decrease code")
 
-        self._revision_code.set(code)
-        self._revision_name.set(name)
+        self.set_system_value(SystemValueType.REVISION_CODE, code)
+        self.set_system_value(SystemValueType.REVISION_NAME, name)
         self.RevisionChanged(code, name)
 
     @external(readonly=True)
     def getRevision(self) -> dict:
-        return {'code': self._revision_code.get(), 'name': self._revision_name.get()}
+        return {'code': self.get_system_value(SystemValueType.REVISION_CODE),
+                'name': self.get_system_value(SystemValueType.REVISION_NAME)}
 
     @external
     def registerProposal(self, title: str, description: str, type: int, value: bytes):
@@ -813,5 +771,5 @@ class Governance(IconSystemScoreBase):
 
         step_price = int(value, 16)
         if step_price > 0:
-            self._step_price.set(step_price)
+            self.set_system_value(SystemValueType.STEP_PRICE, step_price)
             self.StepPriceChanged(step_price)
