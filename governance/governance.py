@@ -439,6 +439,7 @@ class Governance(IconSystemScoreBase):
         score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
         if address not in score_black_list:
             score_black_list.append(address)
+            self.set_system_value(SystemValueType.SCORE_BLACK_LIST, score_black_list)
             self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
             revert('Invalid address: already SCORE blacklist')
@@ -460,7 +461,7 @@ class Governance(IconSystemScoreBase):
             for i in range(len(score_black_list)):
                 if score_black_list[i] == address:
                     score_black_list[i] = top
-
+        self.set_system_value(SystemValueType.SCORE_BLACK_LIST, score_black_list)
         self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
         if DEBUG is True:
@@ -586,11 +587,9 @@ class Governance(IconSystemScoreBase):
 
     def _get_import_white_list(self) -> dict:
         whitelist = {}
-        import_white_list_keys = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST_KEYS)
-        import_white_list = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST)
-        for v in import_white_list_keys:
-            values: str = import_white_list[v]
-            whitelist[v] = values.split(',')
+        import_white_list: dict = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST)
+        for key, values in import_white_list.items():
+            whitelist[key] = values.split(',')
 
         return whitelist
 
@@ -617,7 +616,7 @@ class Governance(IconSystemScoreBase):
 
         code = int(code, 16)
 
-        prev_code = self.get_system_value(SystemValueType.REVISION_CODE)
+        prev_code: int = self.get_system_value(SystemValueType.REVISION_CODE)
         if code < prev_code:
             revert(f"can't decrease code")
 
