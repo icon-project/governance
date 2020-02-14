@@ -118,6 +118,9 @@ class Governance(IconSystemScoreBase):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
+        # Todo: move all data except version and network proposal
+        # Todo: double check about step costs migration logic
+        # Todo: remove all system value
         super().__init__(db)
         # self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
@@ -210,7 +213,7 @@ class Governance(IconSystemScoreBase):
         }
         self.migrate_system_value(system_values)
 
-        # Todo: remove all system value
+
 
     @staticmethod
     def _versions(version: str):
