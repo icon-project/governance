@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from iconservice import *
+from iconservice.icon_constant import IconNetworkValueType
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
@@ -71,9 +72,7 @@ class SystemInterface(InterfaceScore):
 class Governance(IconSystemScoreBase):
     _SCORE_STATUS = 'score_status'  # legacy
     _AUDITOR_LIST = 'auditor_list'
-    _DEPLOYER_LIST = 'deployer_list'
     _VERSION = 'version'
-    _SERVICE_CONFIG = 'service_config'
     _AUDIT_STATUS = 'audit_status'
     _REJECT_STATUS = 'reject_status'
 
@@ -127,10 +126,8 @@ class Governance(IconSystemScoreBase):
         self._audit_status = DictDB(self._AUDIT_STATUS, db, value_type=bytes)
         self._reject_status = DictDB(self._REJECT_STATUS, db, value_type=bytes)
 
-        self._deployer_list = ArrayDB(self._DEPLOYER_LIST, db, value_type=Address)
         self._version = VarDB(self._VERSION, db, value_type=str)
         self._network_proposal = NetworkProposal(db)
-        self._service_config = VarDB(self._SERVICE_CONFIG, db, value_type=int)
 
     def on_update(self) -> None:
         super().on_update()
@@ -182,6 +179,8 @@ class Governance(IconSystemScoreBase):
         pass
 
     def _migrate_v1_0_1(self):
+        service_config = VarDB("service_config", self.db, value_type=int)
+
         step_types = ArrayDB('step_types', self.db, value_type=str)
         step_costs = DictDB('step_costs', self.db, value_type=int)
         step_price = VarDB('step_price', self.db, value_type=int)
@@ -203,17 +202,16 @@ class Governance(IconSystemScoreBase):
         pure_score_black_list = list(score_black_list)
 
         system_values = {
-            SystemValueType.STEP_PRICE: step_price.get(),
-            SystemValueType.STEP_COSTS: pure_step_costs,
-            SystemValueType.MAX_STEP_LIMITS: pure_max_step_limits,
-            SystemValueType.REVISION_CODE: revision_code.get(),
-            SystemValueType.REVISION_NAME: revision_name.get(),
-            SystemValueType.IMPORT_WHITE_LIST: pure_import_white_list,
-            SystemValueType.SCORE_BLACK_LIST: pure_score_black_list
+            IconNetworkValueType.SERVICE_CONFIG: service_config.get(),
+            IconNetworkValueType.STEP_PRICE: step_price.get(),
+            IconNetworkValueType.STEP_COSTS: pure_step_costs,
+            IconNetworkValueType.MAX_STEP_LIMITS: pure_max_step_limits,
+            IconNetworkValueType.REVISION_CODE: revision_code.get(),
+            IconNetworkValueType.REVISION_NAME: revision_name.get(),
+            IconNetworkValueType.IMPORT_WHITE_LIST: pure_import_white_list,
+            IconNetworkValueType.SCORE_BLACK_LIST: pure_score_black_list
         }
-        self.migrate_system_value(system_values)
-
-
+        self.migrate_icon_network_value(system_values)
 
     @staticmethod
     def _versions(version: str):
@@ -319,7 +317,7 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getStepPrice(self) -> int:
-        return self.get_system_value(SystemValueType.STEP_PRICE)
+        return self.get_icon_network_value(IconNetworkValueType.STEP_PRICE)
 
     @external
     def acceptScore(self, txHash: bytes):
@@ -430,7 +428,8 @@ class Governance(IconSystemScoreBase):
     @external(readonly=True)
     def isDeployer(self, address: Address) -> bool:
         Logger.debug(f'isDeployer address: {address}', TAG)
-        return address in self._deployer_list
+        deployer_list = self.get_icon_network_value(IconNetworkValueType.DEPLOYER_LIST)
+        return address in deployer_list
 
     def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
@@ -439,10 +438,10 @@ class Governance(IconSystemScoreBase):
         if self.address == address:
             revert("can't add myself")
 
-        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
+        score_black_list: list = self.get_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST)
         if address not in score_black_list:
             score_black_list.append(address)
-            self.set_system_value(SystemValueType.SCORE_BLACK_LIST, score_black_list)
+            self.set_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST, score_black_list)
             self.MaliciousScore(address, MaliciousScoreType.FREEZE)
         else:
             revert('Invalid address: already SCORE blacklist')
@@ -453,7 +452,7 @@ class Governance(IconSystemScoreBase):
     def _removeFromScoreBlackList(self, address: Address):
         if not address.is_contract:
             revert(f'Invalid SCORE Address: {address}')
-        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
+        score_black_list: list = self.get_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST)
 
         if address not in score_black_list:
             revert('Invalid address: not in list')
@@ -464,7 +463,7 @@ class Governance(IconSystemScoreBase):
             for i in range(len(score_black_list)):
                 if score_black_list[i] == address:
                     score_black_list[i] = top
-        self.set_system_value(SystemValueType.SCORE_BLACK_LIST, score_black_list)
+        self.set_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST, score_black_list)
         self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
         if DEBUG is True:
@@ -473,7 +472,7 @@ class Governance(IconSystemScoreBase):
     @external(readonly=True)
     def isInScoreBlackList(self, address: Address) -> bool:
         Logger.debug(f'isInBlackList address: {address}', TAG)
-        score_black_list: list = self.get_system_value(SystemValueType.SCORE_BLACK_LIST)
+        score_black_list: list = self.get_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST)
         return address in score_black_list
 
     def _print_black_list(self, header: str, score_black_list: list):
@@ -516,7 +515,7 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getStepCosts(self) -> dict:
-        step_costs: dict = self.get_system_value(SystemValueType.STEP_COSTS)
+        step_costs: dict = self.get_icon_network_value(IconNetworkValueType.STEP_COSTS)
         result = {}
 
         for key, value in step_costs.items():
@@ -525,7 +524,8 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
-        max_step_limits: dict = self.get_system_value(SystemValueType.MAX_STEP_LIMITS)
+        # Todo: check if contents type is valid
+        max_step_limits: dict = self.get_icon_network_value(IconNetworkValueType.MAX_STEP_LIMITS)
         return max_step_limits[contextType]
 
     @external(readonly=True)
@@ -590,19 +590,20 @@ class Governance(IconSystemScoreBase):
 
     def _get_import_white_list(self) -> dict:
         whitelist = {}
-        import_white_list: dict = self.get_system_value(SystemValueType.IMPORT_WHITE_LIST)
+        import_white_list: dict = self.get_icon_network_value(IconNetworkValueType.IMPORT_WHITE_LIST)
         for key, values in import_white_list.items():
             whitelist[key] = values.split(',')
 
         return whitelist
 
     def _set_initial_service_config(self):
-        self._service_config.set(self.get_icon_service_flag() | 8)
+        service_config = VarDB("service_config", self.db, value_type=int)
+        service_config.set(self.get_icon_service_flag() | 8)
 
     @external(readonly=True)
     def getServiceConfig(self) -> dict:
         table = {}
-        service_flag = self._service_config.get()
+        service_flag: int = self.get_icon_network_value(IconNetworkValueType.SERVICE_CONFIG)
 
         for flag in IconServiceFlag:
             if service_flag & flag == flag:
@@ -619,18 +620,18 @@ class Governance(IconSystemScoreBase):
 
         code = int(code, 16)
 
-        prev_code: int = self.get_system_value(SystemValueType.REVISION_CODE)
+        prev_code: int = self.get_icon_network_value(IconNetworkValueType.REVISION_CODE)
         if code < prev_code:
             revert(f"can't decrease code")
 
-        self.set_system_value(SystemValueType.REVISION_CODE, code)
-        self.set_system_value(SystemValueType.REVISION_NAME, name)
+        self.set_icon_network_value(IconNetworkValueType.REVISION_CODE, code)
+        self.set_icon_network_value(IconNetworkValueType.REVISION_NAME, name)
         self.RevisionChanged(code, name)
 
     @external(readonly=True)
     def getRevision(self) -> dict:
-        return {'code': self.get_system_value(SystemValueType.REVISION_CODE),
-                'name': self.get_system_value(SystemValueType.REVISION_NAME)}
+        return {'code': self.get_icon_network_value(IconNetworkValueType.REVISION_CODE),
+                'name': self.get_icon_network_value(IconNetworkValueType.REVISION_NAME)}
 
     @external
     def registerProposal(self, title: str, description: str, type: int, value: bytes):
@@ -773,5 +774,5 @@ class Governance(IconSystemScoreBase):
 
         step_price = int(value, 16)
         if step_price > 0:
-            self.set_system_value(SystemValueType.STEP_PRICE, step_price)
+            self.set_icon_network_value(IconNetworkValueType.STEP_PRICE, step_price)
             self.StepPriceChanged(step_price)
