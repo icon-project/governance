@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from iconservice import *
-from iconservice.icon_constant import IconNetworkValueType
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
@@ -145,6 +144,9 @@ class Governance(IconSystemScoreBase):
         if self.is_less_than_target_version('1.0.1'):
             self._migrate_v1_0_1()
         self._version.set('1.0.1')
+
+    def on_install(self) -> None:
+        pass
 
     def is_less_than_target_version(self, target_version: str) -> bool:
         last_version = self._version.get()

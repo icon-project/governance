@@ -10,7 +10,7 @@ from iconsdk.providers.http_provider import HTTPProvider
 from iconsdk.signed_transaction import SignedTransaction
 from iconsdk.wallet.wallet import KeyWallet
 from iconservice.base.type_converter_templates import ConstantKeys
-from iconservice.icon_constant import Revision
+from iconservice.icon_constant import Revision, PRepStatus
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 
 from governance.network_proposal import NetworkProposalType, NetworkProposalVote, NetworkProposalStatus, \
@@ -45,9 +45,9 @@ class TestNetworkProposal(IconIntegrateTestBase):
     def _reset_block_height(self, need_blocks):
         iiss_info = self._get_iiss_info()
 
-        next_term = int(iiss_info.get('nextPRepTerm', 0), 16)
+        next_term = int(iiss_info.get('nextPRepTerm', '0x0'), 16)
         if next_term == 0:
-            next_term = int(iiss_info.get('nextCalculation', 0), 16)
+            next_term = int(iiss_info.get('nextCalculation', '0x0'), 16)
         current_block = self._get_block_height()
 
         if (next_term - current_block) < need_blocks + 1:
