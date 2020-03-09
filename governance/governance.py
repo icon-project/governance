@@ -523,7 +523,9 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
-        # Todo: check if contents type is valid
+        if contextType != CONTEXT_TYPE_INVOKE and contextType != CONTEXT_TYPE_QUERY:
+            revert(f"Invalid context type: {contextType}")
+
         max_step_limits: dict = self.get_icon_network_value(IconNetworkValueType.MAX_STEP_LIMITS)
         return max_step_limits[contextType]
 
