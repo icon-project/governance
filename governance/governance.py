@@ -116,9 +116,6 @@ class Governance(IconSystemScoreBase):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
-        # Todo: move all data except version and network proposal
-        # Todo: double check about step costs migration logic
-        # Todo: remove all system value
         super().__init__(db)
         # self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
@@ -200,7 +197,7 @@ class Governance(IconSystemScoreBase):
             CONTEXT_TYPE_QUERY: max_step_limits[CONTEXT_TYPE_QUERY]
         }
         pure_step_costs = {key: step_costs[key] for key in step_types}
-        pure_import_white_list = {key: import_white_list[key] for key in import_white_list_keys}
+        pure_import_white_list = {key: import_white_list[key].split(',') for key in import_white_list_keys}
         pure_score_black_list = list(score_black_list)
 
         system_values = {
@@ -550,9 +547,9 @@ class Governance(IconSystemScoreBase):
         except Exception as e:
             raise ValueError(f'{e}')
 
-        cache_import_white_list = self._get_import_white_list()
+        import_white_list = self.get_icon_network_value(IconNetworkValueType.IMPORT_WHITE_LIST)
         for key, value in import_stmt_dict.items():
-            old_value: list = cache_import_white_list.get(key, None)
+            old_value: list = import_white_list.get(key, None)
             if old_value is None:
                 return False
 
@@ -589,14 +586,6 @@ class Governance(IconSystemScoreBase):
 
         Logger.debug(f'check_import_stmt_dict: {import_stmt_dict}')
         return import_stmt_dict
-
-    def _get_import_white_list(self) -> dict:
-        whitelist = {}
-        import_white_list: dict = self.get_icon_network_value(IconNetworkValueType.IMPORT_WHITE_LIST)
-        for key, values in import_white_list.items():
-            whitelist[key] = values.split(',')
-
-        return whitelist
 
     def _set_initial_service_config(self):
         service_config = VarDB("service_config", self.db, value_type=int)
