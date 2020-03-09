@@ -212,6 +212,29 @@ class Governance(IconSystemScoreBase):
         }
         self.migrate_icon_network_value(system_values)
 
+        # Remove all data
+        service_config.remove()
+        revision_code.remove()
+        revision_name.remove()
+        step_price.remove()
+        max_step_limits.remove(CONTEXT_TYPE_QUERY)
+        max_step_limits.remove(CONTEXT_TYPE_INVOKE)
+
+        def _remove_array(array: ArrayDB):
+            while True:
+                ret = array.pop()
+                if ret is None:
+                    break
+
+        for type_ in step_types:
+            step_costs.remove(type_)
+        _remove_array(step_types)
+
+        for key in import_white_list_keys:
+            import_white_list.remove(key)
+        _remove_array(import_white_list_keys)
+        _remove_array(score_black_list)
+
     @staticmethod
     def _versions(version: str):
         parts = []
