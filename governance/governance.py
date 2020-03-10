@@ -480,15 +480,13 @@ class Governance(IconSystemScoreBase):
             revert(f'Invalid SCORE Address: {address}')
         score_black_list: list = self.get_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST)
 
-        if address not in score_black_list:
+        for i, listed_score_address in enumerate(score_black_list):
+            if listed_score_address == address:
+                score_black_list.pop(i)
+                break
+        else:
             revert('Invalid address: not in list')
 
-        # get the topmost value
-        top = score_black_list.pop()
-        if top != address:
-            for i in range(len(score_black_list)):
-                if score_black_list[i] == address:
-                    score_black_list[i] = top
         self.set_icon_network_value(IconNetworkValueType.SCORE_BLACK_LIST, score_black_list)
         self.MaliciousScore(address, MaliciousScoreType.UNFREEZE)
 
@@ -506,7 +504,7 @@ class Governance(IconSystemScoreBase):
         for addr in score_black_list:
             Logger.debug(f' --- {addr}', TAG)
 
-    def _set_initial_step_costs(self, step_types, step_costs):
+    def _set_initial_step_costs(self, step_types: 'ArrayDB', step_costs: 'DictDB'):
         initial_costs = {
             STEP_TYPE_DEFAULT: 100_000,
             STEP_TYPE_CONTRACT_CALL: 25_000,
