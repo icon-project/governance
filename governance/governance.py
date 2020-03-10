@@ -192,6 +192,8 @@ class Governance(IconSystemScoreBase):
         import_white_list_keys = ArrayDB('import_white_list_keys', self.db, value_type=str)
         score_black_list = ArrayDB('score_black_list', self.db, value_type=Address)
 
+        deployer_list = ArrayDB('deployer_list', self.db, value_type=Address)
+
         pure_max_step_limits = {
             CONTEXT_TYPE_INVOKE: max_step_limits[CONTEXT_TYPE_INVOKE],
             CONTEXT_TYPE_QUERY: max_step_limits[CONTEXT_TYPE_QUERY]
@@ -234,6 +236,7 @@ class Governance(IconSystemScoreBase):
             import_white_list.remove(key)
         _remove_array(import_white_list_keys)
         _remove_array(score_black_list)
+        _remove_array(deployer_list)
 
     @staticmethod
     def _versions(version: str):
@@ -449,9 +452,7 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def isDeployer(self, address: Address) -> bool:
-        Logger.debug(f'isDeployer address: {address}', TAG)
-        deployer_list = self.get_icon_network_value(IconNetworkValueType.DEPLOYER_LIST)
-        return address in deployer_list
+        revert(f'Deprecated method. Do not manage deployer list anymore.')
 
     def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
