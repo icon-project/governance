@@ -178,6 +178,7 @@ class Governance(IconSystemScoreBase):
         pass
 
     def _migrate_v1_0_1(self):
+        # Migrate and Remove all icon network variables
         service_config = VarDB("service_config", self.db, value_type=int)
 
         step_types = ArrayDB('step_types', self.db, value_type=str)
@@ -194,6 +195,7 @@ class Governance(IconSystemScoreBase):
 
         deployer_list = ArrayDB('deployer_list', self.db, value_type=Address)
 
+        # Convert DictDB to dict, ArrayDB to list
         pure_max_step_limits = {
             CONTEXT_TYPE_INVOKE: max_step_limits[CONTEXT_TYPE_INVOKE],
             CONTEXT_TYPE_QUERY: max_step_limits[CONTEXT_TYPE_QUERY]
@@ -202,6 +204,7 @@ class Governance(IconSystemScoreBase):
         pure_import_white_list = {key: import_white_list[key].split(',') for key in import_white_list_keys}
         pure_score_black_list = list(score_black_list)
 
+        # Migrates
         system_values = {
             IconNetworkValueType.SERVICE_CONFIG: service_config.get(),
             IconNetworkValueType.STEP_PRICE: step_price.get(),
@@ -214,7 +217,7 @@ class Governance(IconSystemScoreBase):
         }
         self.migrate_icon_network_value(system_values)
 
-        # Remove all data
+        # Remove all icon network variables
         service_config.remove()
         revision_code.remove()
         revision_name.remove()
