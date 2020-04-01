@@ -138,9 +138,9 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_5()
         if self.is_less_than_target_version('0.0.6'):
             self._migrate_v0_0_6()
-        if self.is_less_than_target_version('1.0.1'):
-            self._migrate_v1_0_1()
-        self._version.set('1.0.1')
+        if self.is_less_than_target_version('1.1.0'):
+            self._migrate_v1_1_0()
+        self._version.set('1.1.0')
 
     def on_install(self) -> None:
         pass
@@ -177,7 +177,7 @@ class Governance(IconSystemScoreBase):
     def _migrate_v0_0_6(self):
         pass
 
-    def _migrate_v1_0_1(self):
+    def _migrate_v1_1_0(self):
         # Migrate and Remove all icon network variables
         service_config = VarDB("service_config", self.db, value_type=int)
 
@@ -205,7 +205,7 @@ class Governance(IconSystemScoreBase):
         pure_score_black_list = list(score_black_list)
 
         # Migrates
-        system_values = {
+        icon_network_values = {
             IconNetworkValueType.SERVICE_CONFIG: service_config.get(),
             IconNetworkValueType.STEP_PRICE: step_price.get(),
             IconNetworkValueType.STEP_COSTS: pure_step_costs,
@@ -215,7 +215,7 @@ class Governance(IconSystemScoreBase):
             IconNetworkValueType.IMPORT_WHITE_LIST: pure_import_white_list,
             IconNetworkValueType.SCORE_BLACK_LIST: pure_score_black_list
         }
-        self.migrate_icon_network_value(system_values)
+        self.migrate_icon_network_value(icon_network_values)
 
         # Remove all icon network variables
         service_config.remove()
@@ -574,7 +574,7 @@ class Governance(IconSystemScoreBase):
         except Exception as e:
             raise ValueError(f'{e}')
 
-        import_white_list = self.get_icon_network_value(IconNetworkValueType.IMPORT_WHITE_LIST)
+        import_white_list: dict = self.get_icon_network_value(IconNetworkValueType.IMPORT_WHITE_LIST)
         for key, value in import_stmt_dict.items():
             old_value: list = import_white_list.get(key, None)
             if old_value is None:
