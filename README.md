@@ -14,16 +14,16 @@ This document describes APIs that Governance SCORE provides.
 By default, Values in all JSON-RPC messages are in string form.
 The most commonly used Value types are as follows.
 
-| Value Type | Description | Example |
-|:---------- |:------------|:--------|
-| <a id="T_ADDR_EOA">T\_ADDR\_EOA</a> | "hx" + 40 digits HEX string | hxbe258ceb872e08851f1f59694dac2558708ece11 |
-| <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a> | "cx" + 40 digits HEX string | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32 |
-| <a id="T_HASH">T\_HASH</a> | "0x" + 64 digits HEX string | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
-| <a id="T_INT">T\_INT</a> | "0x" + lowercase HEX string | 0xa |
-| <a id="T_STR">T\_STR</a> | string | hello |
-| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string| "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}" |
-| <a id="T_BIN_DATA">T\_BIN\_DATA</a> | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2 |
-| <a id="T_SIG">T\_SIG</a> | base64 encoded string | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
+| Value Type                                | Description                                                  | Example                                                      |
+| :---------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
+| <a id="T_ADDR_EOA">T\_ADDR\_EOA</a>       | "hx" + 40 digits HEX string                                  | hxbe258ceb872e08851f1f59694dac2558708ece11                   |
+| <a id="T_ADDR_SCORE">T\_ADDR\_SCORE</a>   | "cx" + 40 digits HEX string                                  | cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32                   |
+| <a id="T_HASH">T\_HASH</a>                | "0x" + 64 digits HEX string                                  | 0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238 |
+| <a id="T_INT">T\_INT</a>                  | "0x" + lowercase HEX string                                  | 0xa                                                          |
+| <a id="T_STR">T\_STR</a>                  | string                                                       | hello                                                        |
+| <a id="T_IMPORT_STMT">T\_IMPORT\_STMT</a> | Import statement string                                      | "{'json': [], 'os': ['path'], 'base.exception': ['ExceptionCode']}" |
+| <a id="T_BIN_DATA">T\_BIN\_DATA</a>       | "0x" + lowercase HEX string (the length of string should be even) | 0x34b2                                                       |
+| <a id="T_SIG">T\_SIG</a>                  | base64 encoded string                                        | VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA= |
 
 ## Import statement
 ### Grammar
@@ -36,13 +36,13 @@ dotted_name: "'"NAME ("." NAME)*"'" <br>
 NAME: Not an empty string
 
 ### Examples
-| python import | import statement |
-|:------------- |:-----------------|
-|import json | { 'json' : [] } |
-|from json import * |{ 'json' : [] } |
-|from os import path | { 'os' : ['path'] } |
-|from base.exception import ExceptionCode | { 'base.exception' : ['ExceptionCode'] } |
-|import json <br> from os import path <br> from base.exception import ExceptionCode <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode'] } |
+| python import                                                | import statement                                             |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| import json                                                  | { 'json' : [] }                                              |
+| from json import *                                           | { 'json' : [] }                                              |
+| from os import path                                          | { 'os' : ['path'] }                                          |
+| from base.exception import ExceptionCode                     | { 'base.exception' : ['ExceptionCode'] }                     |
+| import json <br> from os import path <br> from base.exception import ExceptionCode <br> | { 'json' : [], 'os' : ['path'], 'base.exception' : ['ExceptionCode'] } |
 
 # Methods List
 
@@ -51,7 +51,7 @@ NAME: Not an empty string
     * [getStepPrice](#getstepprice)
     * [getStepCosts](#getstepcosts)
     * [getMaxStepLimit](#getmaxsteplimit)
-    * [isDeployer](#isdeployer)
+    * ~~isDeployer~~ (deprecated)
     * [isInScoreBlackList](#isinscoreblacklist)
     * [getVersion](#getVersion)
     * [isInImportWhiteList](#isinimportwhitelist)
@@ -107,8 +107,8 @@ Query method does not change state. Read-only.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key     | Value Type                      | Description                           |
+| :------ | :------------------------------ | ------------------------------------- |
 | address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address whose status be checked |
 
 ### Examples
@@ -369,9 +369,9 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| contextType | string | 'invoke' for sendTransaction, 'query' for call |
+| Key         | Value Type | Description                                    |
+| :---------- | :--------- | ---------------------------------------------- |
+| contextType | string     | 'invoke' for sendTransaction, 'query' for call |
 
 ### Returns
 
@@ -409,60 +409,14 @@ None
 }
 ```
 
-## isDeployer
-
-* Returns True if the given address can deploy SCORE.
-
-### Parameters
-
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address to query |
-
-### Returns
-
-`T_INT` - "0x1" if the address is in the deployer list, otherwise "0x0"
-
-### Examples
-
-#### Request
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "icx_call",
-    "params": {
-        "to": "cx0000000000000000000000000000000000000001",
-        "dataType": "call",
-        "data": {
-            "method": "isDeployer",
-            "params": {
-                "address": "hxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-            }
-        }
-    }
-}
-```
-
-#### Response
-
-```json
-{
-    "jsonrpc": "2.0",
-    "id": 100,
-    "result": "0x1"
-}
-```
-
 ## isInScoreBlackList
 
 * Returns "0x1" if the given address is in the deployer list.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key     | Value Type                      | Description            |
+| :------ | :------------------------------ | ---------------------- |
 | address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address to query |
 
 ### Returns
@@ -546,8 +500,8 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key        | Value Type                        | Description      |
+| :--------- | :-------------------------------- | ---------------- |
 | importStmt | [T\_IMPORT\_STMT](#T_IMPORT_STMT) | Import statement |
 
 ### Returns
@@ -674,9 +628,9 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| id| [T\_HASH](#T_HASH) | Transaction hash of the registered network proposal |
+| Key  | Value Type         | Description                                         |
+| :--- | :----------------- | --------------------------------------------------- |
+| id   | [T\_HASH](#T_HASH) | Transaction hash of the registered network proposal |
 
 ### Returns
 
@@ -764,10 +718,10 @@ None
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| type| [T\_INT](#T_INT) | Type for querying (optional) |
-| status| [T\_INT](#T_INT) | Status for querying (optional) |
+| Key    | Value Type       | Description                    |
+| :----- | :--------------- | ------------------------------ |
+| type   | [T\_INT](#T_INT) | Type for querying (optional)   |
+| status | [T\_INT](#T_INT) | Status for querying (optional) |
 
 ### Returns
 
@@ -935,8 +889,8 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key     | Value Type                  | Description                                            |
+| :------ | :-------------------------- | ------------------------------------------------------ |
 | address | [T\_ADDR\_EOA](#T_ADDR_EOA) | New EOA address that will be added to the auditor list |
 
 ### Examples
@@ -975,8 +929,8 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key     | Value Type                  | Description                     |
+| :------ | :-------------------------- | ------------------------------- |
 | address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address in the auditor list |
 
 ### Examples
@@ -1014,38 +968,38 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| title | [T\_STR](#T_STR) | Title of the network proposal |
+| Key         | Value Type       | Description                                                  |
+| :---------- | :--------------- | ------------------------------------------------------------ |
+| title       | [T\_STR](#T_STR) | Title of the network proposal                                |
 | description | [T\_STR](#T_STR) | Description of the network proposal                          |
 | type        | [T\_INT](#T_INT) | Type of the network proposal                                 |
-| value | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
+| value       | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
 
 #### value for type 0x0 (Text)
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| value | [T\_STR](#T_STR) | Text value |
+| Key   | Value Type       | Description |
+| :---- | :--------------- | ----------- |
+| value | [T\_STR](#T_STR) | Text value  |
 
 #### value for type 0x1 (Revision)
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key  | Value Type       | Description   |
+| :--- | :--------------- | ------------- |
 | code | [T\_INT](#T_INT) | Revision code |
 | name | [T\_STR](#T_STR) | Revision name |
 
 #### value for type 0x2 (Malicious SCORE)
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address |
-| type | [T\_INT](#T_INT) | 0x0: Freeze, 0x1: Unfreeze |
+| Key     | Value Type                      | Description                |
+| :------ | :------------------------------ | -------------------------- |
+| address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address              |
+| type    | [T\_INT](#T_INT)                | 0x0: Freeze, 0x1: Unfreeze |
 
 #### value for type 0x3 (P-Rep disqualification)
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key     | Value Type                  | Description                   |
+| :------ | :-------------------------- | ----------------------------- |
 | address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address of main/sub P-Rep |
 
 #### value for type 0x4 (StepPrice)
-| Key | Value Type | Description |
-|:----|:-----------|-----|
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
 | value | [T\_INT](#T_INT) | An integer of the step price in loop |
 
 ### Examples
@@ -1086,9 +1040,9 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to cancel |
+| Key  | Value Type         | Description                                    |
+| :--- | :----------------- | ---------------------------------------------- |
+| id   | [T\_HASH](#T_HASH) | Transaction hash of network proposal to cancel |
 
 ### Examples
 
@@ -1124,10 +1078,10 @@ Invoke method can initiate state transition.
 
 ### Parameters
 
-| Key | Value Type | Description |
-|:----|:-----------|-----|
-| id | [T\_HASH](#T_HASH) | Transaction hash of network proposal to vote |
-| vote | [T\_INT](#T_INT) | 0x0: Disagree, 0x1: Agree |
+| Key  | Value Type         | Description                                  |
+| :--- | :----------------- | -------------------------------------------- |
+| id   | [T\_HASH](#T_HASH) | Transaction hash of network proposal to vote |
+| vote | [T\_INT](#T_INT)   | 0x0: Disagree, 0x1: Agree                    |
 
 ### Examples
 
