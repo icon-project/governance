@@ -7,8 +7,9 @@ class NetworkProposalType:
     MALICIOUS_SCORE = 2
     PREP_DISQUALIFICATION = 3
     STEP_PRICE = 4
+    IREP = 5
     MIN = TEXT
-    MAX = STEP_PRICE
+    MAX = IREP
 
 
 class NetworkProposalStatus:
@@ -47,13 +48,6 @@ class NetworkProposal:
     def __init__(self, db: IconScoreDatabase) -> None:
         self._proposal_list = DictDB(self._PROPOSAL_LIST, db, value_type=bytes)
         self._proposal_list_keys = ArrayDB(self._PROPOSAL_LIST_KEYS, db, value_type=bytes)
-        self._validate_func: list = [
-            self._validate_text_proposal,
-            self._validate_revision_proposal,
-            self._validate_malicious_score_proposal,
-            self._validate_prep_disqualification_proposal,
-            self._validate_step_price_proposal
-        ]
 
     def register_proposal(self, id: bytes, proposer: 'Address', start: int, expired: int,
                           title: str, description: str, type: int, value: dict, main_preps: list) -> None:
@@ -69,9 +63,6 @@ class NetworkProposal:
         :param value: specific value of the proposal
         :param main_preps: main preps in list, List['PRepInfo']
         """
-        if not self._validate_proposal(type, value):
-            revert(f"Invalid parameter - type: {type}, value: {value}")
-
         self._proposal_list_keys.put(id)
         _STATUS = NetworkProposalStatus.VOTING
 
@@ -260,57 +251,6 @@ class NetworkProposal:
     @staticmethod
     def _validate_vote_type(type_: int):
         return True if NetworkProposalVote.MIN <= type_ <= NetworkProposalVote.MAX else False
-
-    def _validate_proposal(self, proposal_type: int, value: dict):
-        result = False
-        if not self._validate_proposal_type(proposal_type):
-            return result
-        try:
-            validator = self._validate_func[proposal_type]
-            result = validator(value)
-        except Exception as e:
-            Logger.error(f"Network proposal parameter validation error :{e}")
-        finally:
-            return result
-
-    @staticmethod
-    def _validate_text_proposal(value: dict) -> bool:
-        text = value['value']
-        return isinstance(text, str)
-
-    @staticmethod
-    def _validate_revision_proposal(value: dict) -> bool:
-        code = int(value['code'], 16)
-        name = value['name']
-
-        return isinstance(code, int) and isinstance(name, str)
-
-    @staticmethod
-    def _validate_malicious_score_proposal(value: dict) -> bool:
-        address = Address.from_string(value['address'])
-        type_ = int(value['type'], 16)
-
-        return isinstance(address, Address) \
-               and address.is_contract \
-               and MaliciousScoreType.MIN <= type_ <= MaliciousScoreType.MAX
-
-    @staticmethod
-    def _validate_prep_disqualification_proposal(value: dict) -> bool:
-        address = Address.from_string(value['address'])
-
-        main_preps, _ = get_main_prep_info()
-        sub_preps, _ = get_sub_prep_info()
-
-        for prep in main_preps + sub_preps:
-            if prep.address == address:
-                return True
-
-        return False
-
-    @staticmethod
-    def _validate_step_price_proposal(value: dict) -> bool:
-        value = int(value['value'], 16)
-        return isinstance(value, int)
 
     def _check_registered_proposal(self, id: bytes) -> bool:
         """ Check if the proposal with ID have already registered

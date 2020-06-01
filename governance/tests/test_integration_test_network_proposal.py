@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Dict, Union, List
 
 from iconsdk.builder.call_builder import CallBuilder
@@ -42,17 +43,6 @@ class TestNetworkProposal(IconIntegrateTestBase):
             block_height = block['height']
         return block_height
 
-    def _reset_block_height(self, need_blocks):
-        iiss_info = self._get_iiss_info()
-
-        next_term = int(iiss_info.get('nextPRepTerm', '0x0'), 16)
-        if next_term == 0:
-            next_term = int(iiss_info.get('nextCalculation', '0x0'), 16)
-        current_block = self._get_block_height()
-
-        if (next_term - current_block) < need_blocks + 1:
-            self._make_blocks(next_term)
-
     def _make_blocks(self, to: int):
         block_height = self._get_block_height()
 
@@ -67,6 +57,9 @@ class TestNetworkProposal(IconIntegrateTestBase):
             next_term = int(iiss_info.get('nextCalculation', 0), 16)
 
         self._make_blocks(to=next_term)
+
+        # wait finishing term calculation
+        time.sleep(0.5)
 
         self.assertEqual(next_term, self._get_block_height())
         return next_term
@@ -360,6 +353,14 @@ class TestNetworkProposal(IconIntegrateTestBase):
             .build()
         return self.process_call(call, self.icon_service)
 
+    def get_irep(self):
+        call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(GOVERNANCE_ADDRESS) \
+            .method("getIRep") \
+            .build()
+        return self.process_call(call, self.icon_service)
+
     def get_main_preps(self):
         call = CallBuilder() \
             .from_(self._test1.get_address()) \
@@ -444,7 +445,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_010_manage_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(5)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -522,9 +523,20 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertFalse(self._wallet_array[1].get_address() in response['vote']['agree']['list'][0]["address"],
                          response)
 
+        # TEST: register I-Rep proposal before revision update
+        proposer = self._test1
+        title = "test title"
+        desc = 'irep network proposal'
+        irep_current = int(self.get_irep(), 16)
+        irep = irep_current + irep_current // 10
+        value = {"value": hex(irep)}
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.IREP, value)
+        response = self.process_transaction(tx, self.icon_service)
+        self.assertEqual(0, response['status'], response)
+
     def test_020_approve_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -559,7 +571,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(4)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -599,7 +611,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_030_disapprove_network_proposal(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(3)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -628,7 +640,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual(hex(NetworkProposalStatus.DISAPPROVED), response['status'], response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(4)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -668,13 +680,13 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_040_revision_update(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(2)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
         title = "test title"
         desc = 'revision update network proposal'
-        code = 10
+        code = Revision.SET_IREP_VIA_NETWORK_PROPOSAL.value # for irep NP test
         name = "for revision update network proposal test"
         value = {"code": hex(code), "name": name}
         tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.REVISION, value)
@@ -706,7 +718,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_050_malicious_score(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(2)
+        self._make_blocks_to_next_term()
 
         # register proposal - freeze SCORE
         proposer = self._test1
@@ -747,7 +759,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         self.assertEqual("0x1", response, response)
 
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(2)
+        self._make_blocks_to_next_term()
 
         # register proposal - unfreeze SCORE
         proposer = self._test1
@@ -907,7 +919,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
 
     def test_070_step_price(self):
         # go to next P-Rep term for main P-Rep election
-        self._reset_block_height(2)
+        self._make_blocks_to_next_term()
 
         # register proposal
         proposer = self._test1
@@ -939,3 +951,42 @@ class TestNetworkProposal(IconIntegrateTestBase):
         # get stePrice
         response = self.get_step_price()
         self.assertEqual(hex(step_price), response, response)
+
+    def test_080_irep(self):
+        # go to next P-Rep term for main P-Rep election
+        self._make_blocks_to_next_term()
+
+        irep_current = int(self.get_irep(), 16)
+
+        # register proposal
+        proposer = self._test1
+        title = "test title"
+        desc = 'irep network proposal'
+        irep = irep_current + irep_current // 10
+        value = {"value": hex(irep)}
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.IREP, value)
+        response = self.process_transaction(tx, self.icon_service)
+        np_id = response['txHash']
+        self.assertEqual(1, response['status'], response)
+
+        # vote - agree (15, 69%)
+        tx_list = [self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE)]
+        for prep in self._wallet_array[0:14]:
+            tx_list.append(self._create_vote_proposal_tx(prep, np_id, NetworkProposalVote.AGREE))
+        response = self.process_transaction_bulk(tx_list, self.icon_service)
+        for i, resp in enumerate(response):
+            self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event log
+        event_log = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log['scoreAddress'], event_log)
+        self.assertEqual('IRepChanged(int)', event_log['indexed'][0], event_log)
+        self.assertEqual(hex(irep), event_log['indexed'][1], event_log)
+        # check proposal status
+        response = self.get_network_proposal(np_id)
+        self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
+
+        # get irep
+        response = self.get_irep()
+        self.assertEqual(hex(irep), response, response)
+
