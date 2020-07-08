@@ -973,34 +973,56 @@ Invoke method can initiate state transition.
 | title       | [T\_STR](#T_STR) | Title of the network proposal                                |
 | description | [T\_STR](#T_STR) | Description of the network proposal                          |
 | type        | [T\_INT](#T_INT) | Type of the network proposal                                 |
-| value       | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value).encode()) |
+| value       | T\_DICT          | Values for each type of network proposal. Hex string of UTF-8 encoded bytes data of JSON string<br />ex. "0x" + bytes.hex(json.dumps(value_dict).encode()) |
 
-#### value for type 0x0 (Text)
+#### available values for the type
+| Value | Description |
+| :---- | ----------- |
+| 0x0   | Text        |
+| 0x1   | Revision    |
+| 0x2   | Malicious SCORE |
+| 0x3   | P-Rep disqualification |
+| 0x4   | Step price |
+| 0x5   | I-Rep |
+
+#### Format of dict values for each type
+*Text*
+
 | Key   | Value Type       | Description |
 | :---- | :--------------- | ----------- |
 | value | [T\_STR](#T_STR) | Text value  |
 
-#### value for type 0x1 (Revision)
+*Revision*
+
 | Key  | Value Type       | Description   |
 | :--- | :--------------- | ------------- |
 | code | [T\_INT](#T_INT) | Revision code |
 | name | [T\_STR](#T_STR) | Revision name |
 
-#### value for type 0x2 (Malicious SCORE)
+*Malicious SCORE*
+
 | Key     | Value Type                      | Description                |
 | :------ | :------------------------------ | -------------------------- |
 | address | [T\_ADDR\_SCORE](#T_ADDR_SCORE) | SCORE address              |
 | type    | [T\_INT](#T_INT)                | 0x0: Freeze, 0x1: Unfreeze |
 
-#### value for type 0x3 (P-Rep disqualification)
+*P-Rep disqualification*
+
 | Key     | Value Type                  | Description                   |
 | :------ | :-------------------------- | ----------------------------- |
 | address | [T\_ADDR\_EOA](#T_ADDR_EOA) | EOA address of main/sub P-Rep |
 
-#### value for type 0x4 (StepPrice)
+*Step price*
+
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
 | value | [T\_INT](#T_INT) | An integer of the step price in loop |
+
+*I-Rep*
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| value | [T\_INT](#T_INT) | An integer of the I-Rep in loop |
 
 ### Examples
 
@@ -1172,6 +1194,16 @@ Triggered on vote transaction approving 'P-Rep Disqualification' network proposa
 ```python
 @eventlog(indexed=0)
 def PRepDisqualified(self, address: Address, success: bool, reason: str):
+    pass
+```
+
+## IRepChanged
+
+Triggered on vote transaction approving 'I-Rep' network proposal.
+
+```python
+@eventlog(indexed=1)
+def IRepChanged(self, irep: int):
     pass
 ```
 

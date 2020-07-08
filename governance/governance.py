@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from iconservice import *
+from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
@@ -99,6 +100,10 @@ class Governance(IconSystemScoreBase):
     def PRepDisqualified(self, address: Address, success: bool, reason: str):
         pass
 
+    @eventlog(indexed=1)
+    def IRepChanged(self, irep: int):
+        pass
+
     @eventlog(indexed=0)
     def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
         pass
@@ -117,7 +122,6 @@ class Governance(IconSystemScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        # self._score_status = DictDB(self._SCORE_STATUS, db, value_type=bytes, depth=3)
         self._auditor_list = ArrayDB(self._AUDITOR_LIST, db, value_type=Address)
         self._audit_status = DictDB(self._AUDIT_STATUS, db, value_type=bytes)
         self._reject_status = DictDB(self._REJECT_STATUS, db, value_type=bytes)
@@ -633,26 +637,17 @@ class Governance(IconSystemScoreBase):
                 table[flag.name] = False
         return table
 
-    def _set_revision(self, code: str, name: str):
-        # check message sender, only main P-Rep can add new blacklist
-        main_preps, _ = get_main_prep_info()
-        if not self._check_main_prep(self.msg.sender, main_preps):
-            revert("No permission - only for main prep")
-
-        code = int(code, 16)
-
-        prev_code: int = self.get_icon_network_value(IconNetworkValueType.REVISION_CODE)
-        if code < prev_code:
-            revert(f"can't decrease code")
-
-        self.set_icon_network_value(IconNetworkValueType.REVISION_CODE, code)
-        self.set_icon_network_value(IconNetworkValueType.REVISION_NAME, name)
-        self.RevisionChanged(code, name)
-
     @external(readonly=True)
     def getRevision(self) -> dict:
         return {'code': self.get_icon_network_value(IconNetworkValueType.REVISION_CODE),
                 'name': self.get_icon_network_value(IconNetworkValueType.REVISION_NAME)}
+
+    @external(readonly=True)
+    def getIRep(self) -> int:
+        irep = self.get_icon_network_value(IconNetworkValueType.IREP)
+        if irep is None:
+            irep = self._context.term.irep
+        return irep
 
     @external
     def registerProposal(self, title: str, description: str, type: int, value: bytes):
@@ -673,9 +668,14 @@ class Governance(IconSystemScoreBase):
             revert("Invalid main P-Rep term information")
 
         value_in_dict = json_loads(value.decode())
+
+        if not self._validate_network_proposal(type, value_in_dict):
+            revert(f"Invalid parameter - type: {type}, value: {value_in_dict}")
+
         self._network_proposal.register_proposal(self.tx.hash, self.msg.sender, self.block_height, expire_block_height,
                                                  title, description, type, value_in_dict, main_preps)
 
+        # event log
         self.NetworkProposalRegistered(title, description, type, value, self.msg.sender)
 
     @external
@@ -703,7 +703,6 @@ class Governance(IconSystemScoreBase):
         :return: None
         """
         main_preps, _ = get_main_prep_info()
-
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
 
@@ -718,18 +717,7 @@ class Governance(IconSystemScoreBase):
 
         if approved is True:
             self.NetworkProposalApproved(id)
-
-            # value dict has str key, value. convert str value to appropriate type to use
-            if proposal_type == NetworkProposalType.TEXT:
-                return
-            elif proposal_type == NetworkProposalType.REVISION:
-                self._set_revision(**value)
-            elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
-                self._malicious_score(**value)
-            elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
-                self._disqualify_prep(**value)
-            elif proposal_type == NetworkProposalType.STEP_PRICE:
-                self._set_step_price(**value)
+            self._approve_network_proposal(proposal_type, value)
 
     @external(readonly=True)
     def getProposal(self, id: bytes) -> dict:
@@ -751,7 +739,8 @@ class Governance(IconSystemScoreBase):
         """
         return self._network_proposal.get_proposals(self.block_height, type, status)
 
-    def _check_main_prep(self, address: 'Address', main_preps: list) -> bool:
+    @staticmethod
+    def _check_main_prep(address: 'Address', main_preps: list) -> bool:
         """ Check if the address is main prep
 
         :param address: address to be checked
@@ -763,12 +752,96 @@ class Governance(IconSystemScoreBase):
                 return True
         return False
 
-    def _malicious_score(self, address: str, type: str):
-        # check message sender, only main P-Rep can modify SCORE blacklist
-        main_preps, _ = get_main_prep_info()
-        if not self._check_main_prep(self.msg.sender, main_preps):
-            revert("No permission - only for main prep")
+    def _validate_network_proposal(self, proposal_type: int, value: dict) -> bool:
+        if proposal_type == NetworkProposalType.TEXT:
+            return self._validate_text_proposal(value)
+        elif proposal_type == NetworkProposalType.REVISION:
+            return self._validate_revision_proposal(value)
+        elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
+            return self._validate_malicious_score_proposal(value)
+        elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
+            return self._validate_prep_disqualification_proposal(value)
+        elif proposal_type == NetworkProposalType.STEP_PRICE:
+            return self._validate_step_price_proposal(value)
+        elif proposal_type == NetworkProposalType.IREP:
+            return self._validate_irep_proposal(value)
+        return False
 
+    @staticmethod
+    def _validate_text_proposal(value: dict) -> bool:
+        text = value['value']
+        return isinstance(text, str)
+
+    @staticmethod
+    def _validate_revision_proposal(value: dict) -> bool:
+        code = int(value['code'], 16)
+        name = value['name']
+
+        return isinstance(code, int) and isinstance(name, str)
+
+    @staticmethod
+    def _validate_malicious_score_proposal(value: dict) -> bool:
+        address = Address.from_string(value['address'])
+        type_ = int(value['type'], 16)
+
+        return isinstance(address, Address) \
+               and address.is_contract \
+               and MaliciousScoreType.MIN <= type_ <= MaliciousScoreType.MAX
+
+    @staticmethod
+    def _validate_prep_disqualification_proposal(value: dict) -> bool:
+        address = Address.from_string(value['address'])
+
+        main_preps, _ = get_main_prep_info()
+        sub_preps, _ = get_sub_prep_info()
+
+        for prep in main_preps + sub_preps:
+            if prep.address == address:
+                return True
+
+        return False
+
+    @staticmethod
+    def _validate_step_price_proposal(value: dict) -> bool:
+        step_price = int(value['value'], 16)
+        return isinstance(step_price, int)
+
+    def _validate_irep_proposal(self, value: dict) -> bool:
+        irep = int(value['value'], 16)
+        if not isinstance(irep, int):
+            return False
+
+        self.validate_irep(irep)
+
+        return True
+
+    def _approve_network_proposal(self, proposal_type: int, value: dict):
+        # value dict has str key, value. convert str value to appropriate type to use
+        if proposal_type == NetworkProposalType.TEXT:
+            return
+        elif proposal_type == NetworkProposalType.REVISION:
+            self._set_revision(**value)
+        elif proposal_type == NetworkProposalType.MALICIOUS_SCORE:
+            self._malicious_score(**value)
+        elif proposal_type == NetworkProposalType.PREP_DISQUALIFICATION:
+            self._disqualify_prep(**value)
+        elif proposal_type == NetworkProposalType.STEP_PRICE:
+            self._set_step_price(**value)
+        elif proposal_type == NetworkProposalType.IREP:
+            self._set_irep(**value)
+
+    def _set_revision(self, code: str, name: str):
+        code = int(code, 16)
+        prev_code: int = self.get_icon_network_value(IconNetworkValueType.REVISION_CODE)
+        if code < prev_code:
+            revert(f"can't decrease code")
+
+        self.set_icon_network_value(IconNetworkValueType.REVISION_CODE, code)
+        self.set_icon_network_value(IconNetworkValueType.REVISION_NAME, name)
+        self.apply_revision_change(code)
+        self.RevisionChanged(code, name)
+
+    def _malicious_score(self, address: str, type: str):
         converted_address = Address.from_string(address)
         converted_type = int(type, 16)
         if converted_type == MaliciousScoreType.FREEZE:
@@ -777,23 +850,19 @@ class Governance(IconSystemScoreBase):
             self._removeFromScoreBlackList(converted_address)
 
     def _disqualify_prep(self, address: str):
-        # check message sender, only main P-Rep can disqualify P-Rep
-        main_preps, _ = get_main_prep_info()
-        if not self._check_main_prep(self.msg.sender, main_preps):
-            revert("No permission - only for main prep")
-
         address = Address.from_string(address)
 
         success, reason = self.disqualify_prep(address)
         self.PRepDisqualified(address, success, reason)
 
     def _set_step_price(self, value: str):
-        # check message sender, only main P-Rep can set step price
-        main_preps, _ = get_main_prep_info()
-        if not self._check_main_prep(self.msg.sender, main_preps):
-            revert("No permission - only for main prep")
-
         step_price = int(value, 16)
         if step_price > 0:
             self.set_icon_network_value(IconNetworkValueType.STEP_PRICE, step_price)
             self.StepPriceChanged(step_price)
+
+    def _set_irep(self, value: str):
+        irep = int(value, 16)
+        if irep > 0:
+            self.set_icon_network_value(IconNetworkValueType.IREP, irep)
+            self.IRepChanged(irep)
