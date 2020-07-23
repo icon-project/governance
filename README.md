@@ -90,6 +90,7 @@ NAME: Not an empty string
     * [RevisionChanged](#revisionchanged)
     * [MaliciousScore](#maliciousscore)
     * [PRepDisqualified](#prepdisqualified)
+    * [IRepChanged](#irepchanged)
     * [NetworkProposalRegistered](#networkproposalregistered)
     * [NetworkProposalCanceled](#networkproposalcanceled)
     * [NetworkProposalVoted](#networkproposalvoted)
