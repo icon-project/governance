@@ -811,7 +811,9 @@ class Governance(IconSystemScoreBase):
         if not self._check_main_prep(self.msg.sender, main_preps):
             revert("No permission - only for main prep")
 
-        step_price = int(value, 16)
+        base = 16 if value.startswith("0x") else 10
+        step_price = int(value, base)
+
         if step_price > 0:
             self._step_price.set(step_price)
             self.StepPriceChanged(step_price)
