@@ -856,7 +856,9 @@ class Governance(IconSystemScoreBase):
         self.PRepDisqualified(address, success, reason)
 
     def _set_step_price(self, value: str):
-        step_price = int(value, 16)
+        base = 16 if value.startswith("0x") else 10
+        step_price = int(value, base)
+
         if step_price > 0:
             self.set_icon_network_value(IconNetworkValueType.STEP_PRICE, step_price)
             self.StepPriceChanged(step_price)
