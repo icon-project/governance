@@ -2,6 +2,7 @@ import hashlib
 import random
 import sys
 import unittest
+from collections import namedtuple
 from copy import deepcopy
 from json import dumps, loads
 from unittest.mock import patch, Mock
@@ -16,6 +17,7 @@ from governance.network_proposal import NetworkProposal, ProposalInfo, NetworkPr
 DATA_BYTE_ORDER = 'big'  # big endian
 COUNT_OF_MAIN_PREPS = 22
 DEFAULT_DELEGATED = 10
+STEP_PRICE = 100
 
 PATCHER_ARRAY_DB = patch('governance.governance.ArrayDB')
 PATCHER_DICT_DB = patch('governance.governance.DictDB')
@@ -162,9 +164,23 @@ class TestUnitGovernance(unittest.TestCase):
                 value_of_type_3 = {"address": str(create_address())}
                 assert not self.governance._validate_prep_disqualification_proposal(value_of_type_3)
 
-    def test_validate_step_price_proposal(self):
-        value_of_type_4 = {"value": hex(0)}
-        assert self.governance._validate_step_price_proposal(value_of_type_4)
+    @patch('governance.governance.Governance.get_icon_network_value', return_value=STEP_PRICE)
+    def test_validate_step_price_proposal(self,  get_icon_network_value):
+        TestCase = namedtuple("TestCase", "step_price, result")
+        tests = [
+            TestCase(STEP_PRICE + 1, True),
+            TestCase(STEP_PRICE - 1, True),
+            TestCase((STEP_PRICE//100) * 125, True),
+            TestCase((STEP_PRICE//100) * 126, False),
+            TestCase((STEP_PRICE//100) * 75, True),
+            TestCase((STEP_PRICE//100) * 74, False),
+        ]
+
+        for test in tests:
+            value_of_type_4 = {"value": hex(test.step_price)}
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
+            value_of_type_4 = {"value": str(test.step_price)}
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
 
     @patch('governance.governance.Governance.validate_irep', return_value=True)
     def test_validate_irep_proposal(self, validate_irep):
