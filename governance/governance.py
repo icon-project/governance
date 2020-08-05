@@ -19,6 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
+VERSION = '1.1.1'
 TAG = 'Governance'
 DEBUG = False
 
@@ -144,7 +145,7 @@ class Governance(IconSystemScoreBase):
             self._migrate_v0_0_6()
         if self.is_less_than_target_version('1.1.0'):
             self._migrate_v1_1_0()
-        self._version.set('1.1.0')
+        self._version.set(VERSION)
 
     def on_install(self) -> None:
         pass
