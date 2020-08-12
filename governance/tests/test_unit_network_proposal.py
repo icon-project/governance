@@ -170,10 +170,10 @@ class TestUnitGovernance(unittest.TestCase):
         tests = [
             TestCase(STEP_PRICE + 1, True),
             TestCase(STEP_PRICE - 1, True),
-            TestCase((STEP_PRICE//100) * 125, True),
-            TestCase((STEP_PRICE//100) * 126, False),
-            TestCase((STEP_PRICE//100) * 75, True),
-            TestCase((STEP_PRICE//100) * 74, False),
+            TestCase(STEP_PRICE * 125 // 100, True),
+            TestCase(STEP_PRICE * 126 // 100, False),
+            TestCase(STEP_PRICE * 75 // 100, True),
+            TestCase(STEP_PRICE * 74 // 100, False),
         ]
 
         for test in tests:

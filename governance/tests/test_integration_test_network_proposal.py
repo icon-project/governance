@@ -925,7 +925,7 @@ class TestNetworkProposal(IconIntegrateTestBase):
         proposer = self._test1
         title = "test title"
         desc = 'step price network proposal'
-        step_price = (int(self.get_step_price(), 0) // 100) * 120
+        step_price = int(self.get_step_price(), 0) * 120 // 100
         value = {"value": hex(step_price)}
         tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.STEP_PRICE, value)
         response = self.process_transaction(tx, self.icon_service)

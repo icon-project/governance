@@ -805,9 +805,9 @@ class Governance(IconSystemScoreBase):
     def _validate_step_price_proposal(self, value: dict) -> bool:
         step_price = int(value['value'], 0)
         step_price_org = self.get_icon_network_value(IconNetworkValueType.STEP_PRICE)
-        max_step_price = (step_price_org // 100) * 125
-        min_step_price = (step_price_org // 100) * 75
-        if step_price < min_step_price or step_price > max_step_price:
+        max_step_price = step_price_org * 125 // 100
+        min_step_price = step_price_org * 75 // 100
+        if not (min_step_price <= step_price <= max_step_price):
             return False
         return isinstance(step_price, int)
 
