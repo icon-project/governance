@@ -2,38 +2,48 @@ import hashlib
 import random
 import sys
 import unittest
+from collections import namedtuple
 from copy import deepcopy
 from json import dumps, loads
 from unittest.mock import patch, Mock
 
 from iconservice import *
-from tbears.libs.scoretest.score_test_case import Address
+from iconservice.iconscore.icon_score_context_util import IconScoreContextUtil
 
+from governance.governance import Governance
 from governance.network_proposal import NetworkProposal, ProposalInfo, NetworkProposalVote, NetworkProposalStatus, \
     NetworkProposalType
 
 DATA_BYTE_ORDER = 'big'  # big endian
 COUNT_OF_MAIN_PREPS = 22
 DEFAULT_DELEGATED = 10
+STEP_PRICE = 100
 
-PATCHER_ARRAY_DB = patch('governance.network_proposal.ArrayDB')
-PATCHER_DICT_DB = patch('governance.network_proposal.DictDB')
+PATCHER_ARRAY_DB = patch('governance.governance.ArrayDB')
+PATCHER_DICT_DB = patch('governance.governance.DictDB')
+PATCHER_VAR_DB = patch('governance.governance.VarDB')
+PATCHER_VALIDATE_PROPOSAL = patch(
+    'governance.governance.Governance._validate_network_proposal', return_value=True)
+PATCHER_VALIDATE_TEXT_PROPOSAL = patch(
+    'governance.governance.Governance._validate_text_proposal', return_value=True)
+PATCHER_VALIDATE_REVISION_PROPOSAL = patch(
+    'governance.governance.Governance._validate_revision_proposal', return_value=True)
+PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL =patch(
+    'governance.governance.Governance._validate_malicious_score_proposal', return_value=True)
+PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL = patch(
+    'governance.governance.Governance._validate_prep_disqualification_proposal', return_value=True)
+PATCHER_VALIDATE_STEP_PRICE_PROPOSAL = patch(
+    'governance.governance.Governance._validate_step_price_proposal', return_value=True)
+PATCHER_VALIDATE_IREP_PROPOSAL = patch(
+    'governance.governance.Governance._validate_irep_proposal', return_value=True)
+
+PATCHER_NP_ARRAY_DB = patch('governance.network_proposal.ArrayDB')
+PATCHER_NP_DICT_DB = patch('governance.network_proposal.DictDB')
 PATCHER_JSON_LOADS = patch('governance.network_proposal.json_loads', side_effect=loads)
 PATCHER_JSON_DUMPS = patch('governance.network_proposal.json_dumps', side_effect=dumps)
 PATCHER_CHECK_VOTE_RESULT = patch('governance.network_proposal.NetworkProposal._check_vote_result', return_value=True)
-PATCHER_CHECK_REGISTERED_PROPOSAL = patch('governance.network_proposal.NetworkProposal._check_registered_proposal',
-                                          return_value=False)
-PATCHER_VALIDATE_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_proposal', return_value=True)
-PATCHER_VALIDATE_TEXT_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_text_proposal',
-                                       return_value=True)
-PATCHER_VALIDATE_REVISION_PROPOSAL = patch('governance.network_proposal.NetworkProposal._validate_revision_proposal',
-                                           return_value=True)
-PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL = patch(
-    'governance.network_proposal.NetworkProposal._validate_malicious_score_proposal', return_value=True)
-PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL = patch(
-    'governance.network_proposal.NetworkProposal._validate_prep_disqualification_proposal', return_value=True)
-PATCHER_VALIDATE_STEP_PRICE_PROPOSAL = patch(
-    'governance.network_proposal.NetworkProposal._validate_step_price_proposal', return_value=True)
+PATCHER_CHECK_REGISTERED_PROPOSAL = patch(
+    'governance.network_proposal.NetworkProposal._check_registered_proposal', return_value=False)
 
 
 def create_tx_hash(data: bytes = None) -> bytes:
@@ -82,9 +92,105 @@ class Prep:
         self.name = "name_" + str(address)
 
 
+# @unittest.skip("skip governance SCORE")
+class TestUnitGovernance(unittest.TestCase):
+
+    @patch_several(PATCHER_ARRAY_DB, PATCHER_DICT_DB, PATCHER_VAR_DB, PATCHER_NP_ARRAY_DB, PATCHER_NP_DICT_DB)
+    def setUp(self) -> None:
+        self.owner = Address.from_string(f"cx{'0'*40}")
+
+        db = Mock(spec=IconScoreDatabase)
+        db.configure_mock(address=f"cx{'0'*40}")
+        IconScoreContextUtil.get_owner = Mock(return_value=self.owner)
+
+        self.governance = Governance(db)
+
+    @patch_several(PATCHER_VALIDATE_TEXT_PROPOSAL, PATCHER_VALIDATE_REVISION_PROPOSAL,
+                   PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
+                   PATCHER_VALIDATE_STEP_PRICE_PROPOSAL, PATCHER_VALIDATE_IREP_PROPOSAL)
+    def test_validate_network_proposal(self):
+        for invalid_vote_type in (6, 7, -1, 1000):
+            tmp_value = {}
+            self.assertFalse(self.governance._validate_network_proposal(invalid_vote_type, tmp_value))
+
+        value_of_type_0 = {"value": "text"}
+        value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
+        value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
+        value_of_type_3 = {"address": str(create_address())}
+        value_of_type_4 = {"value": hex(0)}
+        value_of_type_5 = {"value": hex(0)}
+
+        return_value = self.governance._validate_network_proposal(0, value_of_type_0)
+        assert self.governance._validate_text_proposal.called and return_value
+
+        return_value = self.governance._validate_network_proposal(1, value_of_type_1)
+        assert self.governance._validate_revision_proposal.called and return_value
+
+        return_value = self.governance._validate_network_proposal(2, value_of_type_2)
+        assert self.governance._validate_malicious_score_proposal.called and return_value
+
+        return_value = self.governance._validate_network_proposal(3, value_of_type_3)
+        assert self.governance._validate_prep_disqualification_proposal.called and return_value
+
+        return_value = self.governance._validate_network_proposal(4, value_of_type_4)
+        assert self.governance._validate_step_price_proposal.called and return_value
+
+        return_value = self.governance._validate_network_proposal(5, value_of_type_5)
+        assert self.governance._validate_irep_proposal.called and return_value
+
+    def test_validate_text_proposal(self):
+        value_of_type_0 = {"value": "text"}
+        assert self.governance._validate_text_proposal(value_of_type_0)
+
+    def test_validate_revision_proposal(self):
+        value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
+        assert self.governance._validate_revision_proposal(value_of_type_1)
+
+    @patch('governance.governance.Address.is_contract', return_value=True)
+    def test_validate_malicious_score_proposal(self, is_contract):
+        value_of_type_2 = {"address": str(create_address(AddressPrefix.CONTRACT)), "type": hex(0)}
+        assert self.governance._validate_malicious_score_proposal(value_of_type_2)
+
+    def test_validate_prep_disqualification_proposal(self):
+        main_prep = [Prep(create_address(), 0) for _ in range(COUNT_OF_MAIN_PREPS)]
+        sub_prep = [Prep(create_address(), 0) for _ in range(COUNT_OF_MAIN_PREPS, 100)]
+
+        with patch('governance.governance.get_main_prep_info', return_value=(main_prep, None)):
+            with patch('governance.governance.get_sub_prep_info', return_value=(sub_prep, None)):
+                value_of_type_3 = {"address": str(main_prep[0].address)}
+                assert self.governance._validate_prep_disqualification_proposal(value_of_type_3)
+                value_of_type_3 = {"address": str(sub_prep[0].address)}
+                assert self.governance._validate_prep_disqualification_proposal(value_of_type_3)
+                value_of_type_3 = {"address": str(create_address())}
+                assert not self.governance._validate_prep_disqualification_proposal(value_of_type_3)
+
+    @patch('governance.governance.Governance.get_icon_network_value', return_value=STEP_PRICE)
+    def test_validate_step_price_proposal(self,  get_icon_network_value):
+        TestCase = namedtuple("TestCase", "step_price, result")
+        tests = [
+            TestCase(STEP_PRICE + 1, True),
+            TestCase(STEP_PRICE - 1, True),
+            TestCase(STEP_PRICE * 125 // 100, True),
+            TestCase(STEP_PRICE * 126 // 100, False),
+            TestCase(STEP_PRICE * 75 // 100, True),
+            TestCase(STEP_PRICE * 74 // 100, False),
+        ]
+
+        for test in tests:
+            value_of_type_4 = {"value": hex(test.step_price)}
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
+            value_of_type_4 = {"value": str(test.step_price)}
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
+
+    @patch('governance.governance.Governance.validate_irep', return_value=True)
+    def test_validate_irep_proposal(self, validate_irep):
+        value_of_type_5 = {"value": hex(10)}
+        assert self.governance._validate_irep_proposal(value_of_type_5)
+
+
 class TestUnitNetworkProposal(unittest.TestCase):
 
-    @patch_several(PATCHER_ARRAY_DB, PATCHER_DICT_DB)
+    @patch_several(PATCHER_NP_ARRAY_DB, PATCHER_NP_DICT_DB)
     def setUp(self) -> None:
         db = Mock()
         db.__class = IconScoreDatabase
@@ -121,9 +227,9 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.assertEqual(proposal_info_in_bytes, proposal_info.from_bytes(proposal_info_in_bytes).to_bytes())
 
     def test_validate_proposal_type(self):
-        for valid_proposal_type in (0, 1, 2, 3, 4):
+        for valid_proposal_type in (0, 1, 2, 3, 4, 5):
             self.assertTrue(self.network_proposal._validate_proposal_type(valid_proposal_type))
-        for invalid_proposal_type in (5, 6, 7, -1, 1000):
+        for invalid_proposal_type in (6, 7, -1, 1000):
             self.assertFalse(self.network_proposal._validate_proposal_type(invalid_proposal_type))
 
     def test_validate_proposal_status(self):
@@ -137,70 +243,6 @@ class TestUnitNetworkProposal(unittest.TestCase):
             self.assertTrue(self.network_proposal._validate_vote_type(valid_vote_type))
         for invalid_vote_type in (2, 3, 4, 5, 6, 7, -1, 1000):
             self.assertFalse(self.network_proposal._validate_vote_type(invalid_vote_type))
-
-    @patch_several(PATCHER_VALIDATE_TEXT_PROPOSAL, PATCHER_VALIDATE_REVISION_PROPOSAL,
-                   PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
-                   PATCHER_VALIDATE_STEP_PRICE_PROPOSAL)
-    def test_validate_proposal(self):
-        for invalid_vote_type in (5, 6, 7, -1, 1000):
-            tmp_value = {}
-            self.assertFalse(self.network_proposal._validate_proposal(invalid_vote_type, tmp_value))
-
-        value_of_type_0 = {"value": "text"}
-        value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
-        value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
-        value_of_type_3 = {"address": str(create_address())}
-        value_of_type_4 = {"value": hex(0)}
-
-        self.network_proposal._validate_func = [self.network_proposal._validate_text_proposal,
-                                                self.network_proposal._validate_revision_proposal,
-                                                self.network_proposal._validate_malicious_score_proposal,
-                                                self.network_proposal._validate_prep_disqualification_proposal,
-                                                self.network_proposal._validate_step_price_proposal]
-        return_value = self.network_proposal._validate_proposal(0, value_of_type_0)
-        assert self.network_proposal._validate_text_proposal.called and return_value
-
-        return_value = self.network_proposal._validate_proposal(1, value_of_type_1)
-        assert self.network_proposal._validate_revision_proposal.called and return_value
-
-        return_value = self.network_proposal._validate_proposal(2, value_of_type_2)
-        assert self.network_proposal._validate_malicious_score_proposal.called and return_value
-
-        return_value = self.network_proposal._validate_proposal(3, value_of_type_3)
-        assert self.network_proposal._validate_prep_disqualification_proposal.called and return_value
-
-        return_value = self.network_proposal._validate_proposal(4, value_of_type_4)
-        assert self.network_proposal._validate_step_price_proposal.called and return_value
-
-    def test_validate_text_proposal(self):
-        value_of_type_0 = {"value": "text"}
-        assert self.network_proposal._validate_text_proposal(value_of_type_0)
-
-    def test_validate_revision_proposal(self):
-        value_of_type_1 = {"code": hex(0), "name": "1.1.0"}
-        assert self.network_proposal._validate_revision_proposal(value_of_type_1)
-
-    @patch('governance.network_proposal.Address.is_contract', return_value=True)
-    def test_validate_malicious_score_proposal(self, is_contract):
-        value_of_type_2 = {"address": str(create_address()), "type": hex(0)}
-        assert self.network_proposal._validate_malicious_score_proposal(value_of_type_2)
-
-    def test_validate_prep_disqualification_proposal(self):
-        main_prep = [Prep(create_address(), 0) for _ in range(COUNT_OF_MAIN_PREPS)]
-        sub_prep = [Prep(create_address(), 0) for _ in range(COUNT_OF_MAIN_PREPS, 100)]
-
-        with patch('governance.network_proposal.get_main_prep_info', return_value=(main_prep, None)):
-            with patch('governance.network_proposal.get_sub_prep_info', return_value=(sub_prep, None)):
-                value_of_type_3 = {"address": str(main_prep[0].address)}
-                assert self.network_proposal._validate_prep_disqualification_proposal(value_of_type_3)
-                value_of_type_3 = {"address": str(sub_prep[0].address)}
-                assert self.network_proposal._validate_prep_disqualification_proposal(value_of_type_3)
-                value_of_type_3 = {"address": str(create_address())}
-                assert not self.network_proposal._validate_prep_disqualification_proposal(value_of_type_3)
-
-    def test_validate_step_price_proposal(self):
-        value_of_type_4 = {"value": hex(0)}
-        assert self.network_proposal._validate_step_price_proposal(value_of_type_4)
 
     @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS)
     def test_check_registered_proposal(self):
@@ -452,7 +494,7 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.assertEqual(5, len(self.network_proposal._proposal_list))
         self.assertEqual(expected_proposal_list, result)
 
-    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_VALIDATE_PROPOSAL, PATCHER_ARRAY_DB, PATCHER_DICT_DB)
+    @patch_several(PATCHER_JSON_LOADS, PATCHER_JSON_DUMPS, PATCHER_NP_ARRAY_DB, PATCHER_NP_DICT_DB)
     def test_register_proposal(self):
 
         class TmpArrayDB():
@@ -469,15 +511,6 @@ class TestUnitNetworkProposal(unittest.TestCase):
         attrs = {'return_value': TmpArrayDB()}
         self.network_proposal._proposal_list_keys = Mock()
         self.network_proposal._proposal_list_keys.configure_mock(**attrs)
-
-        # check raise when not validate proposal
-        voter = self._generate_vote(0, 0, 0, 0, 0)
-        proposal_info, _ = self._generate_proposal_info(NetworkProposalStatus.VOTING, voter)
-        with patch.object(self.network_proposal, '_validate_proposal', return_value=False):
-            self.assertRaisesRegex(IconScoreException, "Invalid parameter", self.network_proposal.register_proposal,
-                                   proposal_info.id, proposal_info.proposer, proposal_info.start_block_height,
-                                   proposal_info.end_block_height, proposal_info.title,
-                                   proposal_info.description, proposal_info.type, proposal_info.value, [])
 
         voter = self._generate_vote(0, 0, 0, 0, DEFAULT_DELEGATED * COUNT_OF_MAIN_PREPS)
         for i in range(5):

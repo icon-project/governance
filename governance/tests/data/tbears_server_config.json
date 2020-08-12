@@ -552,6 +552,7 @@
     "networkDelayMs": 500,
     "iissCalculatePeriod": 10,
     "termPeriod": 10,
+    "mainPRepCount": 22,
     "iissMetaData": {
         "lockMin": 10,
         "lockMax": 10
