@@ -3,4 +3,4 @@
 2. run test with T-Bears
 
 # tbears start -c ./governance/tests/data/tbears_server_config.json
-# tbears test ./goveranance
+# tbears test ./governance
