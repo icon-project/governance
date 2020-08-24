@@ -1146,7 +1146,7 @@ Invoke method can initiate state transition.
 | Key     | Value Type                  | Description            |
 | :------ | :-------------------------- | ---------------------- |
 | address | [T\_ADDR\_EOA](#T_ADDR_EOA) | Target EOA address     |
-| Lock    | [T\_INT](#T_INT)            | 0x0: unlock, 0x1: lock |
+| lock    | [T\_INT](#T_INT)            | 0x0: unlock, 0x1: lock |
 
 ### Examples
 
