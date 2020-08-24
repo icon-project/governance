@@ -121,8 +121,8 @@ class Governance(IconSystemScoreBase):
     def NetworkProposalApproved(self, id: bytes):
         pass
 
-    @eventlog(indexed=2)
-    def LockAccount(self, address: 'Address', lock: bool):
+    @eventlog(indexed=1)
+    def AccountLocked(self, address: 'Address', lock: bool):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -886,4 +886,3 @@ class Governance(IconSystemScoreBase):
         self.lock_account(address=address, lock=lock)
 
         self.LockAccount(address=address, lock=lock)
-
