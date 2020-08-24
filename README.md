@@ -96,7 +96,7 @@ NAME: Not an empty string
     * [NetworkProposalCanceled](#networkproposalcanceled)
     * [NetworkProposalVoted](#networkproposalvoted)
     * [NetworkProposalApproved](#networkproposalapproved)
-    * [LockAccount](#lockaccount)
+    * [AccountLocked](#lockaccount)
 
 # Query Methods
 
