@@ -878,7 +878,7 @@ class Governance(IconSystemScoreBase):
             self.IRepChanged(irep)
 
     @external
-    def lockAccount(self, address: str, lock: bool):
+    def lockAccount(self, address: Address, lock: bool):
         if self.msg.sender != self.owner:
             revert('Invalid sender: not owner')
 
