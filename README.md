@@ -1296,8 +1296,7 @@ def NetworkProposalApproved(self, id: bytes):
 Triggered on any successful lockAccount transaction.
 
 ```python
-@eventlog(indexed=2)
-def LockAccount(self, address: Address, lock: bool):
+@eventlog(indexed=1)
+def AccountLocked(self, address: Address, lock: bool):
     pass
 ```
-
