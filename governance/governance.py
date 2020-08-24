@@ -882,7 +882,6 @@ class Governance(IconSystemScoreBase):
         if self.msg.sender != self.owner:
             revert('Invalid sender: not owner')
 
-        address = Address.from_string(address)
-        self.lock_account(address=address, lock=lock)
+        self.lock_account(address, lock)
 
-        self.LockAccount(address=address, lock=lock)
+        self.AccountLocked(address, lock)
