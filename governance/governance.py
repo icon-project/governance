@@ -19,7 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 TAG = 'Governance'
 DEBUG = False
 
@@ -119,6 +119,10 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=0)
     def NetworkProposalApproved(self, id: bytes):
+        pass
+
+    @eventlog(indexed=2)
+    def LockAccount(self, address: 'Address', lock: bool):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -872,3 +876,14 @@ class Governance(IconSystemScoreBase):
         if irep > 0:
             self.set_icon_network_value(IconNetworkValueType.IREP, irep)
             self.IRepChanged(irep)
+
+    @external
+    def lockAccount(self, address: str, lock: bool):
+        if self.msg.sender != self.owner:
+            revert('Invalid sender: not owner')
+
+        address = Address.from_string(address)
+        self.lock_account(address=address, lock=lock)
+
+        self.LockAccount(address=address, lock=lock)
+

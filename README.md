@@ -78,6 +78,7 @@ NAME: Not an empty string
     * [registerProposal](#registerproposal)
     * [cancelProposal](#cancelproposal)
     * [voteProposal](#voteproposal)
+    * [lockAccount](#lockaccount)
 * Eventlog
     * [Accepted](#accepted)
     * [Rejected](#rejected)
@@ -95,6 +96,7 @@ NAME: Not an empty string
     * [NetworkProposalCanceled](#networkproposalcanceled)
     * [NetworkProposalVoted](#networkproposalvoted)
     * [NetworkProposalApproved](#networkproposalapproved)
+    * [LockAccount](#lockaccount)
 
 # Query Methods
 
@@ -1135,6 +1137,47 @@ Invoke method can initiate state transition.
 }
 ```
 
+## lockAccount
+
+- Locking Account
+
+### Parameters
+
+| Key     | Value Type                  | Description            |
+| :------ | :-------------------------- | ---------------------- |
+| address | [T\_ADDR\_EOA](#T_ADDR_EOA) | Target EOA address     |
+| Lock    | [T\_INT](#T_INT)            | 0x0: unlock, 0x1: lock |
+
+### Examples
+
+#### Request
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 100,
+    "method": "icx_sendTransaction",
+    "params": {
+        "version": "0x3",
+        "from": "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "to": "cx0000000000000000000000000000000000000001",
+        "stepLimit": "0x30000",
+        "timestamp": "0x563a6cf330136",
+        "nonce": "0x1",
+        "signature": "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA=",
+        "dataType": "call",
+        "data": {
+            "method": "lockAccount",
+            "parmas": {
+                "address" : "hxbe258ceb872e08851f1f59694dac2558708e1234",
+                "lock" : "0x1"
+            }
+        }
+    }
+}
+```
+
+
 
 # Eventlog
 
@@ -1247,3 +1290,14 @@ Triggered on any successful voteProposal transaction approving network proposal.
 def NetworkProposalApproved(self, id: bytes):
     pass
 ```
+
+## LockAccount
+
+Triggered on any successful lockAccount transaction.
+
+```python
+@eventlog(indexed=2)
+def LockAccount(self, address: Address, lock: bool):
+    pass
+```
+
