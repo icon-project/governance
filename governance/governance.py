@@ -889,3 +889,7 @@ class Governance(IconSystemScoreBase):
         for address, lock in zip(addresses, locks):
             self.lock_account(address, lock)
             self.AccountLocked(address, lock)
+
+    @external(readonly=True)
+    def isAccountLocked(self, address: Address) -> bool:
+        return self.is_lock_account(address=address)
