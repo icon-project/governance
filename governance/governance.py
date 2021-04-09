@@ -8,31 +8,7 @@ VERSION = "0.0.1"
 class ChainInterface(InterfaceScore):
 
     @interface
-    def disableScore(self, address: Address):
-        pass
-
-    @interface
-    def enableScore(self, address: Address):
-        pass
-
-    @interface
     def setRevision(self, code: int):
-        pass
-
-    @interface
-    def acceptScore(self, txHash: bytes):
-        pass
-
-    @interface
-    def rejectScore(self, txHash: bytes):
-        pass
-
-    @interface
-    def blockScore(self, address: Address):
-        pass
-
-    @interface
-    def unblockScore(self, address: Address):
         pass
 
     @interface
@@ -46,6 +22,7 @@ class ChainInterface(InterfaceScore):
     @interface
     def setMaxStepLimit(self, contextType: str, limit: int):
         pass
+
 
 class Governance(IconScoreBase):
 
@@ -62,39 +39,9 @@ class Governance(IconScoreBase):
         super().on_update()
 
     @external
-    def disableScore(self, address: Address):
-        self._check_sender_is_governor()
-        self._chain_score.disableScore(address)
-
-    @external
-    def enableScore(self, address: Address):
-        self._check_sender_is_governor()
-        self._chain_score.enableScore(address)
-
-    @external
     def setRevision(self, code: int):
         self._check_sender_is_governor()
         self._chain_score.setRevision(code)
-
-    @external
-    def acceptScore(self, txHash: bytes):
-        self._check_sender_is_governor()
-        self._chain_score.acceptScore(txHash)
-
-    @external
-    def rejectScore(self, txHash: bytes):
-        self._check_sender_is_governor()
-        self._chain_score.rejectScore(txHash)
-
-    @external
-    def blockScore(self, address: Address):
-        self._check_sender_is_governor()
-        self._chain_score.blockScore(address)
-
-    @external
-    def unblockScore(self, address: Address):
-        self._check_sender_is_governor()
-        self._chain_score.unblockScore(address)
 
     @external
     def setStepPrice(self, price: int):
