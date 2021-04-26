@@ -105,6 +105,10 @@ class Governance(IconSystemScoreBase):
     def IRepChanged(self, irep: int):
         pass
 
+    @eventlog(indexed=1)
+    def StepCostChanged(self, stepType: str, cost: int):
+        pass
+
     @eventlog(indexed=0)
     def NetworkProposalRegistered(self, title: str, description: str, type: int, value: bytes, proposer: Address):
         pass
@@ -554,6 +558,18 @@ class Governance(IconSystemScoreBase):
             result[key] = value
         return result
 
+    @external
+    def setStepCost(self, stepType: str, cost: int):
+        if self.msg.sender != self.owner:
+            revert(f"Invalid owner: {self.msg.sender}")
+
+        if cost < 0 and stepType not in (STEP_TYPE_CONTRACT_DESTRUCT, STEP_TYPE_DELETE):
+            revert(f'Invalid step cost: {stepType}, {cost}')
+
+        step_costs = self.getStepCosts()
+        step_costs[stepType] = cost
+        self.set_icon_network_value(IconNetworkValueType.STEP_COSTS, step_costs)
+
     @external(readonly=True)
     def getMaxStepLimit(self, contextType: str) -> int:
         if contextType != CONTEXT_TYPE_INVOKE and contextType != CONTEXT_TYPE_QUERY:
@@ -872,3 +888,4 @@ class Governance(IconSystemScoreBase):
         if irep > 0:
             self.set_icon_network_value(IconNetworkValueType.IREP, irep)
             self.IRepChanged(irep)
+
