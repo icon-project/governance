@@ -985,6 +985,7 @@ Invoke method can initiate state transition.
 | 0x3   | P-Rep disqualification |
 | 0x4   | Step price |
 | 0x5   | I-Rep |
+| 0x6   | Step costs |
 
 #### Format of dict values for each type
 *Text*
@@ -1024,6 +1025,25 @@ Invoke method can initiate state transition.
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
 | value | [T\_INT](#T_INT) | An integer of the I-Rep in loop |
+
+*Step Costs*<br>
+All fields are optional but at least one field is required.
+ 
+| Key | Value Type         | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| default | [T\_INT](#T_INT) | An integer of the default step cost in loop(Optional) |
+| contractCall | [T\_INT](#T_INT) | An integer of the contractCall step cost in loop(Optional) |
+| contractCreate | [T\_INT](#T_INT) | An integer of the contractCreate step cost in loop(Optional) |
+| contractUpdate | [T\_INT](#T_INT) | An integer of the contractUpdate step cost in loop(Optional) |
+| contractDestruct | [T\_INT](#T_INT) | An integer of the contractDestruct step cost in loop(Optional) |
+| contractSet | [T\_INT](#T_INT) | An integer of the contractSet step cost in loop(Optional) |
+| get | [T\_INT](#T_INT) | An integer of the get step cost in loop(Optional) |
+| set | [T\_INT](#T_INT) | An integer of the set step cost in loop(Optional)|
+| replace | [T\_INT](#T_INT) | An integer of the replace step cost in loop(Optional) |
+| delete | [T\_INT](#T_INT) | An integer of the delete step cost in loop(Optional) |
+| input | [T\_INT](#T_INT) | An integer of the input step cost in loop(Optional) |
+| eventlog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
+| apiCall | [T\_INT](#T_INT) | An integer of the apiCall step cost in loop(Optional) |
 
 ### Examples
 

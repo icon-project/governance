@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import time
@@ -14,6 +15,7 @@ from iconservice.base.type_converter_templates import ConstantKeys
 from iconservice.icon_constant import Revision, PRepStatus
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 
+from governance.governance import STEP_TYPE_CONTRACT_CALL, STEP_TYPE_CONTRACT_CREATE, STEP_TYPE_GET
 from governance.network_proposal import NetworkProposalType, NetworkProposalVote, NetworkProposalStatus, \
     MaliciousScoreType
 
@@ -369,6 +371,14 @@ class TestNetworkProposal(IconIntegrateTestBase):
             .build()
         response = self.process_call(call, self.icon_service)
         return response
+
+    def get_step_costs(self):
+        call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(GOVERNANCE_ADDRESS) \
+            .method("getStepCosts") \
+            .build()
+        return self.process_call(call, self.icon_service)
 
     def test_001_init_integration_test(self):
         response = self.get_revision()
@@ -990,3 +1000,56 @@ class TestNetworkProposal(IconIntegrateTestBase):
         response = self.get_irep()
         self.assertEqual(hex(irep), response, response)
 
+    def test_090_step_costs(self):
+        # go to next P-Rep term for main P-Rep election
+        self._make_blocks_to_next_term()
+
+        step_costs_current = self.get_step_costs()
+
+        # register proposal
+        proposer = self._test1
+        title = "test title"
+        desc = 'step costs network proposal'
+
+        contract_call_current = int(step_costs_current[STEP_TYPE_CONTRACT_CALL], 16)
+        contract_call = contract_call_current * 2
+        contract_create_current = int(step_costs_current[STEP_TYPE_CONTRACT_CREATE], 16)
+        contract_create = contract_create_current * 2
+        value = {
+            STEP_TYPE_CONTRACT_CALL: hex(contract_call),
+            STEP_TYPE_CONTRACT_CREATE: hex(contract_create)
+        }
+        tx = self._create_register_proposal_tx(proposer, title, desc, NetworkProposalType.STEP_COSTS, value)
+        response = self.process_transaction(tx, self.icon_service)
+        np_id = response['txHash']
+        self.assertEqual(1, response['status'], response)
+
+        # vote - agree (15, 69%)
+        tx_list = [self._create_vote_proposal_tx(self._test1, np_id, NetworkProposalVote.AGREE)]
+        for prep in self._wallet_array[0:14]:
+            tx_list.append(self._create_vote_proposal_tx(prep, np_id, NetworkProposalVote.AGREE))
+        response = self.process_transaction_bulk(tx_list, self.icon_service)
+        for i, resp in enumerate(response):
+            self.assertTrue('status' in resp, f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+            self.assertEqual(1, resp['status'], f"{i}:\nTX:\n{tx_list[i].signed_transaction_dict}\nTX_RESULT:\n{resp}")
+        # check event logs
+        event_log0 = response[-1]['eventLogs'][-2]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log0['scoreAddress'], event_log0)
+        self.assertEqual('StepCostChanged(str,int)', event_log0['indexed'][0], event_log0)
+        self.assertEqual(STEP_TYPE_CONTRACT_CALL, event_log0['indexed'][1], event_log0)
+
+        event_log1 = response[-1]['eventLogs'][-1]
+        self.assertEqual(GOVERNANCE_ADDRESS, event_log1['scoreAddress'], event_log1)
+        self.assertEqual('StepCostChanged(str,int)', event_log1['indexed'][0], event_log1)
+        self.assertEqual(STEP_TYPE_CONTRACT_CREATE, event_log1['indexed'][1], event_log1)
+
+        # check proposal status
+        response = self.get_network_proposal(np_id)
+        self.assertEqual(hex(NetworkProposalStatus.APPROVED), response['status'], response)
+
+        # get step costs
+        response = self.get_step_costs()
+        step_costs = copy.deepcopy(step_costs_current)
+        step_costs[STEP_TYPE_CONTRACT_CALL] = hex(contract_call)
+        step_costs[STEP_TYPE_CONTRACT_CREATE] = hex(contract_create)
+        self.assertEqual(response, step_costs)

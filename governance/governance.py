@@ -19,7 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 TAG = 'Governance'
 DEBUG = False
 
@@ -87,6 +87,10 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=1)
     def StepPriceChanged(self, stepPrice: int):
+        pass
+
+    @eventlog(indexed=1)
+    def StepCostChanged(self, type: str, stepCost: int):
         pass
 
     @eventlog(indexed=0)
@@ -766,6 +770,8 @@ class Governance(IconSystemScoreBase):
             return self._validate_step_price_proposal(value)
         elif proposal_type == NetworkProposalType.IREP:
             return self._validate_irep_proposal(value)
+        elif proposal_type == NetworkProposalType.STEP_COSTS:
+            return self._validate_step_costs_proposal(value)
         return False
 
     @staticmethod
@@ -820,6 +826,18 @@ class Governance(IconSystemScoreBase):
 
         return True
 
+    def _validate_step_costs_proposal(self, value: dict) -> bool:
+        if not value:
+            return False
+        for k, v in value.items():
+            if k not in INITIAL_STEP_COST_KEYS:
+                return False
+            cost = int(v, 0)
+            if not isinstance(cost, int):
+                return False
+
+        return True
+
     def _approve_network_proposal(self, proposal_type: int, value: dict):
         # value dict has str key, value. convert str value to appropriate type to use
         if proposal_type == NetworkProposalType.TEXT:
@@ -834,6 +852,8 @@ class Governance(IconSystemScoreBase):
             self._set_step_price(**value)
         elif proposal_type == NetworkProposalType.IREP:
             self._set_irep(**value)
+        elif proposal_type == NetworkProposalType.STEP_COSTS:
+            self._set_step_costs(value)
 
     def _set_revision(self, code: str, name: str):
         code = int(code, 0)
@@ -872,3 +892,15 @@ class Governance(IconSystemScoreBase):
         if irep > 0:
             self.set_icon_network_value(IconNetworkValueType.IREP, irep)
             self.IRepChanged(irep)
+
+    def _set_step_costs(self, costs: dict): # proposal_cost
+        step_costs: dict = self.get_icon_network_value(IconNetworkValueType.STEP_COSTS)
+
+        for cost_key, cost in costs.items():
+            step_costs[cost_key] = int(cost, 16)
+
+        self.set_icon_network_value(IconNetworkValueType.STEP_COSTS, step_costs)
+
+        for k in INITIAL_STEP_COST_KEYS:
+            if k in costs:
+                self.StepCostChanged(k, step_costs[k])

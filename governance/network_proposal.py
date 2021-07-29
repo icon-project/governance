@@ -8,8 +8,9 @@ class NetworkProposalType:
     PREP_DISQUALIFICATION = 3
     STEP_PRICE = 4
     IREP = 5
+    STEP_COSTS = 6
     MIN = TEXT
-    MAX = IREP
+    MAX = STEP_COSTS
 
 
 class NetworkProposalStatus:
