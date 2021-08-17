@@ -740,6 +740,10 @@ class Governance(IconSystemScoreBase):
         """
         return self._network_proposal.get_proposals(self.block_height, type, status)
 
+    @external
+    def setRevision(self, code: str, name: str):
+        self._set_revision(code, name)
+
     @staticmethod
     def _check_main_prep(address: 'Address', main_preps: list) -> bool:
         """ Check if the address is main prep
