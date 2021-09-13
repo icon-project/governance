@@ -986,6 +986,8 @@ Invoke method can initiate state transition.
 | 0x4   | Step price |
 | 0x5   | I-Rep |
 | 0x6   | Step costs |
+| 0x7   | Reward fund setting |
+| 0x8   | Reward fund allocation |
 
 #### Format of dict values for each type
 *Text*
@@ -1044,6 +1046,22 @@ All fields are optional but at least one field is required.
 | input | [T\_INT](#T_INT) | An integer of the input step cost in loop(Optional) |
 | eventlog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
 | apiCall | [T\_INT](#T_INT) | An integer of the apiCall step cost in loop(Optional) |
+
+*Monthly Reward Fund Setting*
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| iglobal | [T\_INT](#T_INT) | The total amount of monthly reward fund in loop  |
+
+*Monthly Reward Fund Allocation*<br>
+Determine the allocation of the monthly reward fund
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| iprep | [T\_INT](#T_INT) | The percentage allocated to the P-Rep from the monthly reward fund |
+| icps | [T\_INT](#T_INT) | The percentage allocated to the CPS from the monthly reward fund |
+| irelay | [T\_INT](#T_INT) | The percentage allocated to the BTP relay from the monthly reward fund |
+| ivoter | [T\_INT](#T_INT) | The percentage allocated to the Voter from the monthly reward fund |
 
 ### Examples
 

@@ -9,8 +9,10 @@ class NetworkProposalType:
     STEP_PRICE = 4
     IREP = 5
     STEP_COSTS = 6
+    REWARD_FUND_SETTING = 7
+    REWARD_FUND_ALLOCATION = 8
     MIN = TEXT
-    MAX = STEP_COSTS
+    MAX = REWARD_FUND_ALLOCATION
 
 
 class NetworkProposalStatus:

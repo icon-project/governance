@@ -19,7 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-VERSION = '1.1.2'
+VERSION = '1.2.0'
 TAG = 'Governance'
 DEBUG = False
 
@@ -123,6 +123,14 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=0)
     def NetworkProposalApproved(self, id: bytes):
+        pass
+
+    @eventlog(indexed=0)
+    def RewardFundSettingChanged(self, iglobal: int):
+        pass
+
+    @eventlog(indexed=0)
+    def RewardFundAllocationChanged(self, iprep: int, icps: int, irelay: int, ivoter: int):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -772,6 +780,10 @@ class Governance(IconSystemScoreBase):
             return self._validate_irep_proposal(value)
         elif proposal_type == NetworkProposalType.STEP_COSTS:
             return self._validate_step_costs_proposal(value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_SETTING:
+            return self._validate_reward_fund_setting_proposal(value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_ALLOCATION:
+            return self._validate_reward_fund_allocation_proposal(value)
         return False
 
     @staticmethod
@@ -836,6 +848,28 @@ class Governance(IconSystemScoreBase):
             if not isinstance(cost, int):
                 return False
 
+    def _validate_reward_fund_setting_proposal(self, value: dict) -> bool:
+        iglobal = int(value['iglobal'], 0)
+        if not isinstance(iglobal, int):
+            return False
+
+        self.validate_reward_fund(iglobal)
+
+        return True
+
+    def _validate_reward_fund_allocation_proposal(self, value: dict) -> bool:
+        try:
+            iprep = int(value['iprep'], 0)
+            icps = int(value['icps'], 0)
+            irelay = int(value['irelay'], 0)
+            ivoter = int(value['ivoter'], 0)
+            if iprep < 0 or icps < 0 or irelay < 0 or ivoter < 0:
+                return False
+            if iprep + icps + irelay + ivoter != 100:
+                return False
+        except ValueError:
+            return False
+
         return True
 
     def _approve_network_proposal(self, proposal_type: int, value: dict):
@@ -854,6 +888,10 @@ class Governance(IconSystemScoreBase):
             self._set_irep(**value)
         elif proposal_type == NetworkProposalType.STEP_COSTS:
             self._set_step_costs(value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_SETTING:
+            self._set_reward_fund(**value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_ALLOCATION:
+            self._set_reward_fund_allocation(**value)
 
     def _set_revision(self, code: str, name: str):
         code = int(code, 0)
@@ -904,3 +942,17 @@ class Governance(IconSystemScoreBase):
         for k in INITIAL_STEP_COST_KEYS:
             if k in costs:
                 self.StepCostChanged(k, step_costs[k])
+
+    def _set_reward_fund(self, iglobal: str):
+        iglobal_int = int(iglobal, 0)
+        if iglobal_int > 0:
+            self.set_reward_fund(iglobal_int)
+            self.RewardFundSettingChanged(iglobal_int)
+
+    def _set_reward_fund_allocation(self, iprep: str, icps: str, irelay: str, ivoter: str):
+        iprep = int(iprep, 0)
+        icps = int(icps, 0)
+        irelay = int(irelay, 0)
+        ivoter = int(ivoter, 0)
+        self.set_reward_fund_allocation(iprep, icps, irelay, ivoter)
+        self.RewardFundAllocationChanged(iprep, icps, irelay, ivoter)

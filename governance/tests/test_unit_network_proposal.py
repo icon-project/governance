@@ -36,6 +36,10 @@ PATCHER_VALIDATE_STEP_PRICE_PROPOSAL = patch(
     'governance.governance.Governance._validate_step_price_proposal', return_value=True)
 PATCHER_VALIDATE_IREP_PROPOSAL = patch(
     'governance.governance.Governance._validate_irep_proposal', return_value=True)
+PATCHER_VALIDATE_REWARD_FUND_SETTING_PROPOSAL = patch(
+    'governance.governance.Governance._validate_reward_fund_setting_proposal', return_value=True)
+PATCHER_VALIDATE_REWARD_FUND_ALLOCATION_PROPOSAL = patch(
+    'governance.governance.Governance._validate_reward_fund_allocation_proposal', return_value=True)
 
 PATCHER_NP_ARRAY_DB = patch('governance.network_proposal.ArrayDB')
 PATCHER_NP_DICT_DB = patch('governance.network_proposal.DictDB')
@@ -107,7 +111,8 @@ class TestUnitGovernance(unittest.TestCase):
 
     @patch_several(PATCHER_VALIDATE_TEXT_PROPOSAL, PATCHER_VALIDATE_REVISION_PROPOSAL,
                    PATCHER_VALIDATE_MALICIOUS_SCORE_PROPOSAL, PATCHER_VALIDATE_PREP_DISQUALIFICATION_PROPOSAL,
-                   PATCHER_VALIDATE_STEP_PRICE_PROPOSAL, PATCHER_VALIDATE_IREP_PROPOSAL)
+                   PATCHER_VALIDATE_STEP_PRICE_PROPOSAL, PATCHER_VALIDATE_IREP_PROPOSAL,
+                   PATCHER_VALIDATE_REWARD_FUND_SETTING_PROPOSAL, PATCHER_VALIDATE_REWARD_FUND_ALLOCATION_PROPOSAL)
     def test_validate_network_proposal(self):
         for invalid_vote_type in (6, 7, -1, 1000):
             tmp_value = {}
@@ -137,6 +142,14 @@ class TestUnitGovernance(unittest.TestCase):
 
         return_value = self.governance._validate_network_proposal(5, value_of_type_5)
         assert self.governance._validate_irep_proposal.called and return_value
+
+        value_of_type_6 = {"iglobal": hex(0)}
+        return_value = self.governance._validate_network_proposal(6, value_of_type_6)
+        assert self.governance._validate_reward_fund_setting_proposal.called and return_value
+
+        value_of_type_7 = {"iprep": hex(50), "icps": hex(0), "irelay": hex(0), "ivoter": hex(50)}
+        return_value = self.governance._validate_network_proposal(7, value_of_type_7)
+        assert self.governance._validate_reward_fund_allocation_proposal.called and return_value
 
     def test_validate_text_proposal(self):
         value_of_type_0 = {"value": "text"}
@@ -171,21 +184,40 @@ class TestUnitGovernance(unittest.TestCase):
             TestCase(STEP_PRICE + 1, True),
             TestCase(STEP_PRICE - 1, True),
             TestCase(STEP_PRICE * 125 // 100, True),
-            TestCase(STEP_PRICE * 126 // 100, False),
+            TestCase(STEP_PRICE * 127 // 100, False),
             TestCase(STEP_PRICE * 75 // 100, True),
             TestCase(STEP_PRICE * 74 // 100, False),
         ]
 
-        for test in tests:
+        for i, test in enumerate(tests):
             value_of_type_4 = {"value": hex(test.step_price)}
-            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4), f"#{i+1}: {test.step_price}"
             value_of_type_4 = {"value": str(test.step_price)}
-            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4)
+            assert test.result == self.governance._validate_step_price_proposal(value_of_type_4), f"#{i+1}: {test.step_price}"
 
     @patch('governance.governance.Governance.validate_irep', return_value=True)
     def test_validate_irep_proposal(self, validate_irep):
         value_of_type_5 = {"value": hex(10)}
         assert self.governance._validate_irep_proposal(value_of_type_5)
+
+    def test_validate_reward_fund_allocation_proposal(self):
+        TestCase = namedtuple("TestCase", "iprep, icps, irelay, ivoter, result")
+        tests = [
+            TestCase(0, 0, 0, 100, True),
+            TestCase(25, 25, 25, 25, True),
+            TestCase(10, 10, 10, 80, False),
+            TestCase(10, 10, 10, 10, False),
+            TestCase(-10, 10, 50, 50, False),
+        ]
+
+        for i, test in enumerate(tests):
+            value_of_type_7 = {
+                "iprep": hex(test.iprep),
+                "icps": hex(test.icps),
+                "irelay": hex(test.irelay),
+                "ivoter": hex(test.ivoter),
+            }
+            assert test.result == self.governance._validate_reward_fund_allocation_proposal(value_of_type_7), f"#{i+1}"
 
 
 class TestUnitNetworkProposal(unittest.TestCase):
@@ -227,9 +259,9 @@ class TestUnitNetworkProposal(unittest.TestCase):
         self.assertEqual(proposal_info_in_bytes, proposal_info.from_bytes(proposal_info_in_bytes).to_bytes())
 
     def test_validate_proposal_type(self):
-        for valid_proposal_type in (0, 1, 2, 3, 4, 5):
+        for valid_proposal_type in (0, 1, 2, 3, 4, 5, 6, 7):
             self.assertTrue(self.network_proposal._validate_proposal_type(valid_proposal_type))
-        for invalid_proposal_type in (6, 7, -1, 1000):
+        for invalid_proposal_type in (8, 9, -1, 1000):
             self.assertFalse(self.network_proposal._validate_proposal_type(invalid_proposal_type))
 
     def test_validate_proposal_status(self):
