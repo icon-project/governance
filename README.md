@@ -1044,9 +1044,8 @@ All fields are optional but at least one field is required.
 | replace | [T\_INT](#T_INT) | An integer of the replace step cost in loop(Optional) |
 | delete | [T\_INT](#T_INT) | An integer of the delete step cost in loop(Optional) |
 | input | [T\_INT](#T_INT) | An integer of the input step cost in loop(Optional) |
-| eventlog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
+| eventLog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
 | apiCall | [T\_INT](#T_INT) | An integer of the apiCall step cost in loop(Optional) |
-
 *Monthly Reward Fund Setting*
 
 | Key   | Value Type       | Description                          |
@@ -1206,6 +1205,16 @@ def StepPriceChanged(self, stepPrice: int):
     pass
 ```
 
+## StepCostChanged
+
+Triggered on vote transaction approving 'Step Costs' network proposal.
+
+```python
+@eventlog(indexed=1)
+def StepCostChanged(self,  type: str, stepCost: int):
+    pass
+```
+
 ## RevisionChanged
 
 Triggered on vote transaction approving 'Revision' network proposal.
@@ -1243,6 +1252,26 @@ Triggered on vote transaction approving 'I-Rep' network proposal.
 ```python
 @eventlog(indexed=1)
 def IRepChanged(self, irep: int):
+    pass
+```
+
+## RewardFundSettingChanged
+
+Triggered on vote transaction approving 'Reward Fund Setting' network proposal.
+
+```python
+@eventlog(indexed=0)
+def RewardFundSettingChanged(self, iglobal: int):
+    pass
+```
+
+## RewardFundAllocationChanged
+
+Triggered on vote transaction approving 'Reward Fund Allocation' network proposal.
+
+```python
+@eventlog(indexed=0)
+def RewardFundAllocationChanged(self, iprep: int, icps: int, irelay: int, ivoter: int):
     pass
 ```
 
