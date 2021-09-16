@@ -847,6 +847,7 @@ class Governance(IconSystemScoreBase):
             cost = int(v, 0)
             if not isinstance(cost, int):
                 return False
+        return True
 
     def _validate_reward_fund_setting_proposal(self, value: dict) -> bool:
         iglobal = int(value['iglobal'], 0)
