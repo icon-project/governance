@@ -82,7 +82,7 @@ NAME: Not an empty string
     * [Accepted](#accepted)
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
-    * ~~StepCostChanged~~ (deprecated)
+    * [StepCostChanged](#stepcostchanged)
     * ~~MaxStepLimitChanged~~ (deprecated)
     * ~~AddImportWhiteListLog~~ (deprecated)
     * ~~RemoveImportWhiteList~~ (deprecated)
@@ -990,6 +990,7 @@ Invoke method can initiate state transition.
 | 0x8   | Reward fund allocation |
 
 #### Format of dict values for each type
+
 *Text*
 
 | Key   | Value Type       | Description |
@@ -1028,9 +1029,12 @@ Invoke method can initiate state transition.
 | :---- | :--------------- | ------------------------------------ |
 | value | [T\_INT](#T_INT) | An integer of the I-Rep in loop |
 
-*Step Costs*<br>
-All fields are optional but at least one field is required.
- 
+*Step Costs*
+
+| Key | Value Type         | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| costs | [T\_LIST\[T\_DICT\]](#T_LIST) | List of step costs to set in dict. <br> Fields are optional but at least one field is required. |
+
 | Key | Value Type         | Description                          |
 | :---- | :--------------- | ------------------------------------ |
 | default | [T\_INT](#T_INT) | An integer of the default step cost in loop(Optional) |
@@ -1046,6 +1050,12 @@ All fields are optional but at least one field is required.
 | input | [T\_INT](#T_INT) | An integer of the input step cost in loop(Optional) |
 | eventLog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
 | apiCall | [T\_INT](#T_INT) | An integer of the apiCall step cost in loop(Optional) |
+
+*example*
+```json
+{"costs": ["default": "0x10", "set": "0x20"]}
+```
+
 *Monthly Reward Fund Setting*
 
 | Key   | Value Type       | Description                          |
@@ -1057,10 +1067,19 @@ Determine the allocation of the monthly reward fund
 
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
+| rewardFunds | [T\_LIST\[T\_DICT\]](#T_INT) | Reward fund values information to set. All values are required. |
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
 | iprep | [T\_INT](#T_INT) | The percentage allocated to the P-Rep from the monthly reward fund |
 | icps | [T\_INT](#T_INT) | The percentage allocated to the CPS from the monthly reward fund |
 | irelay | [T\_INT](#T_INT) | The percentage allocated to the BTP relay from the monthly reward fund |
 | ivoter | [T\_INT](#T_INT) | The percentage allocated to the Voter from the monthly reward fund |
+
+*example*
+```json
+{"rewardFunds": [{"iprep": "0x19"}, {"icps": "0x17"}, {"irelay": "0x1a"}, {"ivoter":  "0x1a"}]}
+```
 
 ### Examples
 
