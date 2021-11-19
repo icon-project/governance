@@ -36,11 +36,21 @@ STEP_TYPE_DELETE = 'delete'
 STEP_TYPE_INPUT = 'input'
 STEP_TYPE_EVENT_LOG = 'eventLog'
 STEP_TYPE_API_CALL = 'apiCall'
-INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
-                          STEP_TYPE_CONTRACT_CALL, STEP_TYPE_CONTRACT_CREATE, STEP_TYPE_CONTRACT_UPDATE,
-                          STEP_TYPE_CONTRACT_DESTRUCT, STEP_TYPE_CONTRACT_SET,
-                          STEP_TYPE_GET, STEP_TYPE_SET, STEP_TYPE_REPLACE, STEP_TYPE_DELETE, STEP_TYPE_INPUT,
-                          STEP_TYPE_EVENT_LOG, STEP_TYPE_API_CALL]
+STEP_TYPE_SCHEMA = "schema"
+STEP_TYPE_GET_BASE = "getBase"
+STEP_TYPE_SET_BASE = "setBase"
+STEP_TYPE_DELETE_BASE = "deleteBase"
+STEP_TYPE_LOG_BASE = "logBase"
+STEP_TYPE_LOG = "log"
+INITIAL_STEP_TYPES = [STEP_TYPE_DEFAULT,
+                      STEP_TYPE_CONTRACT_CALL, STEP_TYPE_CONTRACT_CREATE, STEP_TYPE_CONTRACT_UPDATE,
+                      STEP_TYPE_CONTRACT_DESTRUCT, STEP_TYPE_CONTRACT_SET,
+                      STEP_TYPE_GET, STEP_TYPE_SET, STEP_TYPE_REPLACE, STEP_TYPE_DELETE, STEP_TYPE_INPUT,
+                      STEP_TYPE_EVENT_LOG, STEP_TYPE_API_CALL]
+ALL_STEP_TYPES = INITIAL_STEP_TYPES.copy()
+ALL_STEP_TYPES.extend([STEP_TYPE_SCHEMA,
+                       STEP_TYPE_GET_BASE, STEP_TYPE_SET_BASE, STEP_TYPE_DELETE_BASE,
+                       STEP_TYPE_LOG_BASE, STEP_TYPE_LOG])
 
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
@@ -149,7 +159,7 @@ class Governance(IconSystemScoreBase):
         step_costs = DictDB('step_costs', self.db, value_type=int)
         if len(step_types) == 0:
             # migrates from old DB of step_costs.
-            for step_type in INITIAL_STEP_COST_KEYS:
+            for step_type in INITIAL_STEP_TYPES:
                 if step_type in step_costs:
                     step_types.put(step_type)
 
@@ -722,19 +732,19 @@ class Governance(IconSystemScoreBase):
 
         return True
 
-    def _validate_step_costs_proposal(self, value: dict) -> bool:
+    @staticmethod
+    def _validate_step_costs_proposal(value: dict) -> bool:
         if isinstance(value, dict) is False:
             return False
-        if isinstance(value["costs"], list) is False:
+        if isinstance(value["costs"], dict) is False:
             return False
-        for cost_info in value["costs"]:
-            for k in cost_info:
-                if k not in INITIAL_STEP_COST_KEYS:
-                    return False
-                try:
-                    int(cost_info[k], 0)
-                except ValueError:
-                    return False
+        for k, v in value["costs"].items():
+            if k not in ALL_STEP_TYPES:
+                return False
+            try:
+                int(v, 0)
+            except ValueError:
+                return False
         return True
 
     def _validate_reward_fund_setting_proposal(self, value: dict) -> bool:
@@ -825,18 +835,14 @@ class Governance(IconSystemScoreBase):
             self.set_icon_network_value(IconNetworkValueType.IREP, irep)
             self.IRepChanged(irep)
 
-    def _set_step_costs(self, costs: list):
-        step_costs: dict = self.get_icon_network_value(IconNetworkValueType.STEP_COSTS)
-
-        keys = []
-        for cost_info in costs:
-            for k in cost_info:
-                step_costs[k] = int(cost_info[k], 16)
+    def _set_step_costs(self, costs: dict):
+        step_costs = {}
+        for k, v in costs.items():
+            step_costs[k] = int(v, 0)
 
         self.set_icon_network_value(IconNetworkValueType.STEP_COSTS, step_costs)
-
-        for k in keys:
-            self.StepCostChanged(k, step_costs[k])
+        for k, v in step_costs.items():
+            self.StepCostChanged(k, v)
 
     def _set_reward_fund(self, iglobal: str):
         iglobal_int = int(iglobal, 0)

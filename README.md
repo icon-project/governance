@@ -1033,27 +1033,30 @@ Invoke method can initiate state transition.
 
 | Key | Value Type         | Description                          |
 | :---- | :--------------- | ------------------------------------ |
-| costs | [T\_LIST\[T\_DICT\]](#T_LIST) | List of step costs to set in dict. <br> Fields are optional but at least one field is required. |
+| costs | [T\_DICT](#T_DICT) | Step costs to set as a dict. <br> All fields are optional but at least one field should be specified. |
 
 | Key | Value Type         | Description                          |
 | :---- | :--------------- | ------------------------------------ |
-| default | [T\_INT](#T_INT) | An integer of the default step cost in loop(Optional) |
-| contractCall | [T\_INT](#T_INT) | An integer of the contractCall step cost in loop(Optional) |
-| contractCreate | [T\_INT](#T_INT) | An integer of the contractCreate step cost in loop(Optional) |
-| contractUpdate | [T\_INT](#T_INT) | An integer of the contractUpdate step cost in loop(Optional) |
-| contractDestruct | [T\_INT](#T_INT) | An integer of the contractDestruct step cost in loop(Optional) |
-| contractSet | [T\_INT](#T_INT) | An integer of the contractSet step cost in loop(Optional) |
-| get | [T\_INT](#T_INT) | An integer of the get step cost in loop(Optional) |
-| set | [T\_INT](#T_INT) | An integer of the set step cost in loop(Optional)|
-| replace | [T\_INT](#T_INT) | An integer of the replace step cost in loop(Optional) |
-| delete | [T\_INT](#T_INT) | An integer of the delete step cost in loop(Optional) |
-| input | [T\_INT](#T_INT) | An integer of the input step cost in loop(Optional) |
-| eventLog | [T\_INT](#T_INT) | An integer of the eventlog step cost in loop(Optional) |
-| apiCall | [T\_INT](#T_INT) | An integer of the apiCall step cost in loop(Optional) |
+| schema | [T\_INT](#T_INT) | Schema version |
+| default | [T\_INT](#T_INT) | Default cost charged each time transaction is executed |
+| contractCall | [T\_INT](#T_INT) | Cost to call the smart contract function |
+| contractCreate | [T\_INT](#T_INT) | Cost to call the smart contract code generation function |
+| contractUpdate | [T\_INT](#T_INT) | Cost to call the smart contract code update function |
+| contractSet | [T\_INT](#T_INT) | Cost to store the generated/updated smart contract code per byte |
+| get | [T\_INT](#T_INT) | Cost to get values from the state database per byte |
+| getBase | [T\_INT](#T_INT) | Default cost charged each time `get` is called |
+| set | [T\_INT](#T_INT) | Cost to set values newly in the state database per byte |
+| setBase | [T\_INT](#T_INT) | Default cost charged each time `set` is called |
+| delete | [T\_INT](#T_INT) | Cost to delete values in the state database per byte |
+| deleteBase | [T\_INT](#T_INT) | Default cost charged each time `delete` is called |
+| input | [T\_INT](#T_INT) | Cost charged for input data included in transaction per byte |
+| log | [T\_INT](#T_INT) | Cost to emit event logs per byte |
+| logBase | [T\_INT](#T_INT) | Default cost charged each time `log` is called |
+| apiCall | [T\_INT](#T_INT) | Cost charged for heavy API calls (e.g. hash functions) |
 
 *example*
 ```json
-{"costs": ["default": "0x10", "set": "0x20"]}
+{"costs": {"default": "0x186a0", "set": "0x140"}}
 ```
 
 *Monthly Reward Fund Setting*
