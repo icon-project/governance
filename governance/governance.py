@@ -23,19 +23,6 @@ VERSION = '1.2.0'
 TAG = 'Governance'
 DEBUG = False
 
-CURRENT = 'current'
-NEXT = 'next'
-STATUS = 'status'
-DEPLOY_TX_HASH = 'deployTxHash'
-AUDIT_TX_HASH = 'auditTxHash'
-DEPOSIT_INFO = 'depositInfo'
-VALID_STATUS_KEYS = [STATUS, DEPLOY_TX_HASH, AUDIT_TX_HASH]
-
-STATUS_PENDING = 'pending'
-STATUS_ACTIVE = 'active'
-STATUS_INACTIVE = 'inactive'
-STATUS_REJECTED = 'rejected'
-
 STEP_TYPE_DEFAULT = 'default'
 STEP_TYPE_CONTRACT_CALL = 'contractCall'
 STEP_TYPE_CONTRACT_CREATE = 'contractCreate'
@@ -58,20 +45,8 @@ INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
 
-ZERO_TX_HASH = bytes(32)
-
-
-def _is_tx_hash_valid(tx_hash: bytes) -> bool:
-    return tx_hash is not None and tx_hash != ZERO_TX_HASH
-
-
-class SystemInterface(InterfaceScore):
-    @interface
-    def getScoreDepositInfo(self, address: Address) -> dict: pass
-
 
 class Governance(IconSystemScoreBase):
-    _SCORE_STATUS = 'score_status'  # legacy
     _AUDITOR_LIST = 'auditor_list'
     _VERSION = 'version'
     _AUDIT_STATUS = 'audit_status'
@@ -385,10 +360,6 @@ class Governance(IconSystemScoreBase):
         Logger.debug(f'{header}: list len = {len(self._auditor_list)}', TAG)
         for auditor in self._auditor_list:
             Logger.debug(f' --- {auditor}', TAG)
-
-    @external(readonly=True)
-    def isDeployer(self, address: Address) -> bool:
-        revert(f'Deprecated method. Do not manage deployer list anymore.')
 
     def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
