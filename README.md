@@ -82,7 +82,7 @@ NAME: Not an empty string
     * [Accepted](#accepted)
     * [Rejected](#rejected)
     * [StepPriceChanged](#steppricechanged)
-    * ~~StepCostChanged~~ (deprecated)
+    * [StepCostChanged](#stepcostchanged)
     * ~~MaxStepLimitChanged~~ (deprecated)
     * ~~AddImportWhiteListLog~~ (deprecated)
     * ~~RemoveImportWhiteList~~ (deprecated)
@@ -985,8 +985,12 @@ Invoke method can initiate state transition.
 | 0x3   | P-Rep disqualification |
 | 0x4   | Step price |
 | 0x5   | I-Rep |
+| 0x6   | Step costs |
+| 0x7   | Reward fund setting |
+| 0x8   | Reward fund allocation |
 
 #### Format of dict values for each type
+
 *Text*
 
 | Key   | Value Type       | Description |
@@ -1024,6 +1028,61 @@ Invoke method can initiate state transition.
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
 | value | [T\_INT](#T_INT) | An integer of the I-Rep in loop |
+
+*Step Costs*
+
+| Key | Value Type         | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| costs | [T\_DICT](#T_DICT) | Step costs to set as a dict. <br> All fields are optional but at least one field should be specified. |
+
+| Key | Value Type         | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| schema | [T\_INT](#T_INT) | Schema version |
+| default | [T\_INT](#T_INT) | Default cost charged each time transaction is executed |
+| contractCall | [T\_INT](#T_INT) | Cost to call the smart contract function |
+| contractCreate | [T\_INT](#T_INT) | Cost to call the smart contract code generation function |
+| contractUpdate | [T\_INT](#T_INT) | Cost to call the smart contract code update function |
+| contractSet | [T\_INT](#T_INT) | Cost to store the generated/updated smart contract code per byte |
+| get | [T\_INT](#T_INT) | Cost to get values from the state database per byte |
+| getBase | [T\_INT](#T_INT) | Default cost charged each time `get` is called |
+| set | [T\_INT](#T_INT) | Cost to set values newly in the state database per byte |
+| setBase | [T\_INT](#T_INT) | Default cost charged each time `set` is called |
+| delete | [T\_INT](#T_INT) | Cost to delete values in the state database per byte |
+| deleteBase | [T\_INT](#T_INT) | Default cost charged each time `delete` is called |
+| input | [T\_INT](#T_INT) | Cost charged for input data included in transaction per byte |
+| log | [T\_INT](#T_INT) | Cost to emit event logs per byte |
+| logBase | [T\_INT](#T_INT) | Default cost charged each time `log` is called |
+| apiCall | [T\_INT](#T_INT) | Cost charged for heavy API calls (e.g. hash functions) |
+
+*example*
+```json
+{"costs": {"default": "0x186a0", "set": "0x140"}}
+```
+
+*Monthly Reward Fund Setting*
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| iglobal | [T\_INT](#T_INT) | The total amount of monthly reward fund in loop  |
+
+*Monthly Reward Fund Allocation*<br>
+Determine the allocation of the monthly reward fund
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| rewardFunds | [T\_DICT](#T_DICT) | Reward fund values information to set. All values are required. |
+
+| Key   | Value Type       | Description                          |
+| :---- | :--------------- | ------------------------------------ |
+| iprep | [T\_INT](#T_INT) | The percentage allocated to the P-Rep from the monthly reward fund |
+| icps | [T\_INT](#T_INT) | The percentage allocated to the CPS from the monthly reward fund |
+| irelay | [T\_INT](#T_INT) | The percentage allocated to the BTP relay from the monthly reward fund |
+| ivoter | [T\_INT](#T_INT) | The percentage allocated to the Voter from the monthly reward fund |
+
+*example*
+```json
+{"rewardFunds": {"iprep": "0x19", "icps": "0x17", "irelay": "0x1a", "ivoter": "0x1a"}}
+```
 
 ### Examples
 
@@ -1168,6 +1227,16 @@ def StepPriceChanged(self, stepPrice: int):
     pass
 ```
 
+## StepCostChanged
+
+Triggered on vote transaction approving 'Step Costs' network proposal.
+
+```python
+@eventlog(indexed=1)
+def StepCostChanged(self,  type: str, stepCost: int):
+    pass
+```
+
 ## RevisionChanged
 
 Triggered on vote transaction approving 'Revision' network proposal.
@@ -1205,6 +1274,26 @@ Triggered on vote transaction approving 'I-Rep' network proposal.
 ```python
 @eventlog(indexed=1)
 def IRepChanged(self, irep: int):
+    pass
+```
+
+## RewardFundSettingChanged
+
+Triggered on vote transaction approving 'Reward Fund Setting' network proposal.
+
+```python
+@eventlog(indexed=0)
+def RewardFundSettingChanged(self, iglobal: int):
+    pass
+```
+
+## RewardFundAllocationChanged
+
+Triggered on vote transaction approving 'Reward Fund Allocation' network proposal.
+
+```python
+@eventlog(indexed=0)
+def RewardFundAllocationChanged(self, iprep: int, icps: int, irelay: int, ivoter: int):
     pass
 ```
 

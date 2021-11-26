@@ -19,22 +19,9 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-VERSION = '1.1.1'
+VERSION = '1.2.0'
 TAG = 'Governance'
 DEBUG = False
-
-CURRENT = 'current'
-NEXT = 'next'
-STATUS = 'status'
-DEPLOY_TX_HASH = 'deployTxHash'
-AUDIT_TX_HASH = 'auditTxHash'
-DEPOSIT_INFO = 'depositInfo'
-VALID_STATUS_KEYS = [STATUS, DEPLOY_TX_HASH, AUDIT_TX_HASH]
-
-STATUS_PENDING = 'pending'
-STATUS_ACTIVE = 'active'
-STATUS_INACTIVE = 'inactive'
-STATUS_REJECTED = 'rejected'
 
 STEP_TYPE_DEFAULT = 'default'
 STEP_TYPE_CONTRACT_CALL = 'contractCall'
@@ -49,29 +36,27 @@ STEP_TYPE_DELETE = 'delete'
 STEP_TYPE_INPUT = 'input'
 STEP_TYPE_EVENT_LOG = 'eventLog'
 STEP_TYPE_API_CALL = 'apiCall'
-INITIAL_STEP_COST_KEYS = [STEP_TYPE_DEFAULT,
-                          STEP_TYPE_CONTRACT_CALL, STEP_TYPE_CONTRACT_CREATE, STEP_TYPE_CONTRACT_UPDATE,
-                          STEP_TYPE_CONTRACT_DESTRUCT, STEP_TYPE_CONTRACT_SET,
-                          STEP_TYPE_GET, STEP_TYPE_SET, STEP_TYPE_REPLACE, STEP_TYPE_DELETE, STEP_TYPE_INPUT,
-                          STEP_TYPE_EVENT_LOG, STEP_TYPE_API_CALL]
+STEP_TYPE_SCHEMA = "schema"
+STEP_TYPE_GET_BASE = "getBase"
+STEP_TYPE_SET_BASE = "setBase"
+STEP_TYPE_DELETE_BASE = "deleteBase"
+STEP_TYPE_LOG_BASE = "logBase"
+STEP_TYPE_LOG = "log"
+INITIAL_STEP_TYPES = [STEP_TYPE_DEFAULT,
+                      STEP_TYPE_CONTRACT_CALL, STEP_TYPE_CONTRACT_CREATE, STEP_TYPE_CONTRACT_UPDATE,
+                      STEP_TYPE_CONTRACT_DESTRUCT, STEP_TYPE_CONTRACT_SET,
+                      STEP_TYPE_GET, STEP_TYPE_SET, STEP_TYPE_REPLACE, STEP_TYPE_DELETE, STEP_TYPE_INPUT,
+                      STEP_TYPE_EVENT_LOG, STEP_TYPE_API_CALL]
+ALL_STEP_TYPES = INITIAL_STEP_TYPES.copy()
+ALL_STEP_TYPES.extend([STEP_TYPE_SCHEMA,
+                       STEP_TYPE_GET_BASE, STEP_TYPE_SET_BASE, STEP_TYPE_DELETE_BASE,
+                       STEP_TYPE_LOG_BASE, STEP_TYPE_LOG])
 
 CONTEXT_TYPE_INVOKE = 'invoke'
 CONTEXT_TYPE_QUERY = 'query'
 
-ZERO_TX_HASH = bytes(32)
-
-
-def _is_tx_hash_valid(tx_hash: bytes) -> bool:
-    return tx_hash is not None and tx_hash != ZERO_TX_HASH
-
-
-class SystemInterface(InterfaceScore):
-    @interface
-    def getScoreDepositInfo(self, address: Address) -> dict: pass
-
 
 class Governance(IconSystemScoreBase):
-    _SCORE_STATUS = 'score_status'  # legacy
     _AUDITOR_LIST = 'auditor_list'
     _VERSION = 'version'
     _AUDIT_STATUS = 'audit_status'
@@ -87,6 +72,10 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=1)
     def StepPriceChanged(self, stepPrice: int):
+        pass
+
+    @eventlog(indexed=1)
+    def StepCostChanged(self, type: str, stepCost: int):
         pass
 
     @eventlog(indexed=0)
@@ -119,6 +108,14 @@ class Governance(IconSystemScoreBase):
 
     @eventlog(indexed=0)
     def NetworkProposalApproved(self, id: bytes):
+        pass
+
+    @eventlog(indexed=0)
+    def RewardFundSettingChanged(self, iglobal: int):
+        pass
+
+    @eventlog(indexed=0)
+    def RewardFundAllocationChanged(self, iprep: int, icps: int, irelay: int, ivoter: int):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -162,7 +159,7 @@ class Governance(IconSystemScoreBase):
         step_costs = DictDB('step_costs', self.db, value_type=int)
         if len(step_types) == 0:
             # migrates from old DB of step_costs.
-            for step_type in INITIAL_STEP_COST_KEYS:
+            for step_type in INITIAL_STEP_TYPES:
                 if step_type in step_costs:
                     step_types.put(step_type)
 
@@ -259,94 +256,7 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getScoreStatus(self, address: Address) -> dict:
-        # Governance
-        if self.is_builtin_score(address):
-            deploy_info = self.get_deploy_info(address)
-            result = {
-                CURRENT: {
-                    STATUS: STATUS_ACTIVE
-                }
-            }
-            if deploy_info.current_tx_hash is not None:
-                result[CURRENT][DEPLOY_TX_HASH] = deploy_info.current_tx_hash
-            return result
-
-        deploy_info = self.get_deploy_info(address)
-        if deploy_info is None:
-            revert('SCORE not found')
-
-        current_tx_hash = deploy_info.current_tx_hash
-        next_tx_hash = deploy_info.next_tx_hash
-        active = self.is_score_active(address)
-
-        # install audit
-        if not _is_tx_hash_valid(current_tx_hash) \
-                and _is_tx_hash_valid(next_tx_hash) \
-                and active is False:
-            reject_tx_hash = self._reject_status[next_tx_hash]
-            if reject_tx_hash:
-                result = {
-                    NEXT: {
-                        STATUS: STATUS_REJECTED,
-                        DEPLOY_TX_HASH: next_tx_hash,
-                        AUDIT_TX_HASH: reject_tx_hash
-                    }}
-            else:
-                result = {
-                    NEXT: {
-                        STATUS: STATUS_PENDING,
-                        DEPLOY_TX_HASH: next_tx_hash
-                    }}
-        elif _is_tx_hash_valid(current_tx_hash) \
-                and not _is_tx_hash_valid(next_tx_hash) \
-                and active is True:
-            audit_tx_hash = self._audit_status[current_tx_hash]
-            result = {
-                CURRENT: {
-                    STATUS: STATUS_ACTIVE,
-                    DEPLOY_TX_HASH: current_tx_hash
-                }}
-            if audit_tx_hash:
-                result[CURRENT][AUDIT_TX_HASH] = audit_tx_hash
-        else:
-            # update audit
-            if _is_tx_hash_valid(current_tx_hash) \
-                    and _is_tx_hash_valid(next_tx_hash) \
-                    and active is True:
-                current_audit_tx_hash = self._audit_status[current_tx_hash]
-                next_reject_tx_hash = self._reject_status[next_tx_hash]
-                if next_reject_tx_hash:
-                    result = {
-                        CURRENT: {
-                            STATUS: STATUS_ACTIVE,
-                            DEPLOY_TX_HASH: current_tx_hash,
-                            AUDIT_TX_HASH: current_audit_tx_hash
-                        },
-                        NEXT: {
-                            STATUS: STATUS_REJECTED,
-                            DEPLOY_TX_HASH: next_tx_hash,
-                            AUDIT_TX_HASH: next_reject_tx_hash
-                        }}
-                else:
-                    result = {
-                        CURRENT: {
-                            STATUS: STATUS_ACTIVE,
-                            DEPLOY_TX_HASH: current_tx_hash,
-                            AUDIT_TX_HASH: current_audit_tx_hash
-                        },
-                        NEXT: {
-                            STATUS: STATUS_PENDING,
-                            DEPLOY_TX_HASH: next_tx_hash
-                        }}
-            else:
-                result = {}
-
-        system = self.create_interface_score(ZERO_SCORE_ADDRESS, SystemInterface)
-        deposit_info = system.getScoreDepositInfo(address)
-        if deposit_info is not None:
-            result[DEPOSIT_INFO] = deposit_info
-
-        return result
+        return self.get_score_status(address)
 
     @external(readonly=True)
     def getStepPrice(self) -> int:
@@ -460,10 +370,6 @@ class Governance(IconSystemScoreBase):
         Logger.debug(f'{header}: list len = {len(self._auditor_list)}', TAG)
         for auditor in self._auditor_list:
             Logger.debug(f' --- {auditor}', TAG)
-
-    @external(readonly=True)
-    def isDeployer(self, address: Address) -> bool:
-        revert(f'Deprecated method. Do not manage deployer list anymore.')
 
     def _addToScoreBlackList(self, address: Address):
         if not address.is_contract:
@@ -766,6 +672,12 @@ class Governance(IconSystemScoreBase):
             return self._validate_step_price_proposal(value)
         elif proposal_type == NetworkProposalType.IREP:
             return self._validate_irep_proposal(value)
+        elif proposal_type == NetworkProposalType.STEP_COSTS:
+            return self._validate_step_costs_proposal(value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_SETTING:
+            return self._validate_reward_fund_setting_proposal(value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_ALLOCATION:
+            return self._validate_reward_fund_allocation_proposal(value)
         return False
 
     @staticmethod
@@ -820,6 +732,59 @@ class Governance(IconSystemScoreBase):
 
         return True
 
+    @staticmethod
+    def _validate_step_costs_proposal(value: dict) -> bool:
+        if isinstance(value, dict) is False:
+            return False
+        try:
+            costs = value["costs"]
+            if isinstance(costs, dict) is False:
+                return False
+            for k, v in costs.items():
+                if k not in ALL_STEP_TYPES:
+                    return False
+                int(v, 0)
+            return True
+        except KeyError:
+            return False
+        except ValueError:
+            return False
+
+    def _validate_reward_fund_setting_proposal(self, value: dict) -> bool:
+        iglobal = int(value['iglobal'], 0)
+        if not isinstance(iglobal, int):
+            return False
+
+        self.validate_reward_fund(iglobal)
+
+        return True
+
+    @staticmethod
+    def _validate_reward_fund_allocation_proposal(value: dict) -> bool:
+        if isinstance(value, dict) is False:
+            return False
+        try:
+            funds = value["rewardFunds"]
+            if isinstance(funds, dict) is False:
+                return False
+            valid_keys = ["iprep", "icps", "irelay", "ivoter"]
+            total = 0
+            for k, v in funds.items():
+                if k not in valid_keys:
+                    return False
+                valid_keys.remove(k)
+                i = int(v, 0)
+                if i < 0:
+                    return False
+                total += i
+            if total != 100 or len(valid_keys) != 0:
+                return False
+            return True
+        except KeyError:
+            return False
+        except ValueError:
+            return False
+
     def _approve_network_proposal(self, proposal_type: int, value: dict):
         # value dict has str key, value. convert str value to appropriate type to use
         if proposal_type == NetworkProposalType.TEXT:
@@ -834,6 +799,12 @@ class Governance(IconSystemScoreBase):
             self._set_step_price(**value)
         elif proposal_type == NetworkProposalType.IREP:
             self._set_irep(**value)
+        elif proposal_type == NetworkProposalType.STEP_COSTS:
+            self._set_step_costs(value["costs"])
+        elif proposal_type == NetworkProposalType.REWARD_FUND_SETTING:
+            self._set_reward_fund(**value)
+        elif proposal_type == NetworkProposalType.REWARD_FUND_ALLOCATION:
+            self._set_reward_fund_allocation(value["rewardFunds"])
 
     def _set_revision(self, code: str, name: str):
         code = int(code, 0)
@@ -872,3 +843,32 @@ class Governance(IconSystemScoreBase):
         if irep > 0:
             self.set_icon_network_value(IconNetworkValueType.IREP, irep)
             self.IRepChanged(irep)
+
+    def _set_step_costs(self, costs: dict):
+        step_costs = {}
+        for k, v in costs.items():
+            step_costs[k] = int(v, 0)
+
+        self.set_icon_network_value(IconNetworkValueType.STEP_COSTS, step_costs)
+        for k, v in step_costs.items():
+            self.StepCostChanged(k, v)
+
+    def _set_reward_fund(self, iglobal: str):
+        iglobal_int = int(iglobal, 0)
+        if iglobal_int > 0:
+            self.set_reward_fund(iglobal_int)
+            self.RewardFundSettingChanged(iglobal_int)
+
+    def _set_reward_fund_allocation(self, funds: dict):
+        iprep, icps, irelay, ivoter = 0, 0, 0, 0
+        for k, v in funds.items():
+            if k == "iprep":
+                iprep = int(v, 0)
+            elif k == "icps":
+                icps = int(v, 0)
+            elif k == "irelay":
+                irelay = int(v, 0)
+            else:
+                ivoter = int(v, 0)
+        self.set_reward_fund_allocation(iprep, icps, irelay, ivoter)
+        self.RewardFundAllocationChanged(iprep, icps, irelay, ivoter)
