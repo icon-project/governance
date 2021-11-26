@@ -57,6 +57,13 @@ STEP_COSTS_v1 = {
     STEP_TYPE_EVENT_LOG: 0
 }
 
+TEST_ALLOCATION = {
+    "iprep": 0x17,
+    "icps": 0x18,
+    "irelay": 0x1a,
+    "ivoter":  0x1b
+}
+
 
 class TestGovernance(unittest.TestCase):
 
@@ -76,6 +83,58 @@ class TestGovernance(unittest.TestCase):
         costs_v1['extra'] = hex(1000)
         value2 = {'costs': costs_v1}
         self.assertFalse(Governance._validate_step_costs_proposal(value2))
+
+        del costs_v1['extra']
+        costs_v1[STEP_TYPE_GET] = "cx0"
+        value3 = {'costs': costs_v1}
+        self.assertFalse(Governance._validate_step_costs_proposal(value3))
+
+    def test_validate_reward_fund_allocation_proposal(self):
+        alloc = TEST_ALLOCATION
+        funds = {}
+        for k, v in alloc.items():
+            funds[k] = hex(v)
+        value = {'rewardFunds': funds}
+        self.assertTrue(Governance._validate_reward_fund_allocation_proposal(value))
+
+        funds['iextra'] = hex(1)
+        value1 = {'rewardFunds': funds}
+        self.assertFalse(Governance._validate_reward_fund_allocation_proposal(value1))
+
+        del funds['iextra']
+        funds['ivoter'] = hex(alloc['ivoter'] + 1)
+        value2 = {'rewardFunds': funds}
+        self.assertFalse(Governance._validate_reward_fund_allocation_proposal(value2))
+
+        alloc1 = alloc.copy()
+        alloc1['ivoter'] += alloc1['icps']
+        del alloc1["icps"]
+        funds1 = {}
+        for k, v in alloc1.items():
+            funds1[k] = hex(v)
+        value3 = {'rewardFunds': funds1}
+        self.assertFalse(Governance._validate_reward_fund_allocation_proposal(value3))
+
+    def test_set_reward_fund_allocation(self):
+        class TestGov(Governance):
+            def __init__(self):
+                self.exp = []
+                for v in TEST_ALLOCATION.values():
+                    self.exp.append(v)
+
+            def set_reward_fund_allocation(self, iprep: int, icps: int, irelay: int, ivoter: int):
+                got = [iprep, icps, irelay, ivoter]
+                assert self.exp == got
+
+            def RewardFundAllocationChanged(self, iprep: int, icps: int, irelay: int, ivoter: int):
+                got = [iprep, icps, irelay, ivoter]
+                assert self.exp == got
+
+        funds = {}
+        for k, v in TEST_ALLOCATION.items():
+            funds[k] = hex(v)
+        gov = TestGov()
+        gov._set_reward_fund_allocation(funds)
 
 
 if __name__ == '__main__':

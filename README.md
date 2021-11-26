@@ -1070,7 +1070,7 @@ Determine the allocation of the monthly reward fund
 
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
-| rewardFunds | [T\_LIST\[T\_DICT\]](#T_INT) | Reward fund values information to set. All values are required. |
+| rewardFunds | [T\_DICT](#T_DICT) | Reward fund values information to set. All values are required. |
 
 | Key   | Value Type       | Description                          |
 | :---- | :--------------- | ------------------------------------ |
@@ -1081,7 +1081,7 @@ Determine the allocation of the monthly reward fund
 
 *example*
 ```json
-{"rewardFunds": [{"iprep": "0x19"}, {"icps": "0x17"}, {"irelay": "0x1a"}, {"ivoter":  "0x1a"}]}
+{"rewardFunds": {"iprep": "0x19", "icps": "0x17", "irelay": "0x1a", "ivoter": "0x1a"}}
 ```
 
 ### Examples

@@ -759,25 +759,31 @@ class Governance(IconSystemScoreBase):
 
         return True
 
-    def _validate_reward_fund_allocation_proposal(self, value: dict) -> bool:
+    @staticmethod
+    def _validate_reward_fund_allocation_proposal(value: dict) -> bool:
+        if isinstance(value, dict) is False:
+            return False
         try:
             funds = value["rewardFunds"]
+            if isinstance(funds, dict) is False:
+                return False
             valid_keys = ["iprep", "icps", "irelay", "ivoter"]
             total = 0
-            for fund in funds:
-                for k in fund:
-                    if k not in valid_keys:
-                        return False
-                    v = int(fund[k], 0)
-                    if v < 0:
-                        return False
-                    total += v
-            if total != 100:
+            for k, v in funds.items():
+                if k not in valid_keys:
+                    return False
+                valid_keys.remove(k)
+                i = int(v, 0)
+                if i < 0:
+                    return False
+                total += i
+            if total != 100 or len(valid_keys) != 0:
                 return False
+            return True
+        except KeyError:
+            return False
         except ValueError:
             return False
-
-        return True
 
     def _approve_network_proposal(self, proposal_type: int, value: dict):
         # value dict has str key, value. convert str value to appropriate type to use
@@ -853,17 +859,16 @@ class Governance(IconSystemScoreBase):
             self.set_reward_fund(iglobal_int)
             self.RewardFundSettingChanged(iglobal_int)
 
-    def _set_reward_fund_allocation(self, funds: list):
+    def _set_reward_fund_allocation(self, funds: dict):
         iprep, icps, irelay, ivoter = 0, 0, 0, 0
-        for fund in funds:
-            for k in fund:
-                if k == "iprep":
-                    iprep = int(fund[k], 0)
-                elif k == "icps":
-                    icps = int(fund[k], 0)
-                elif k == "irelay":
-                    irelay = int(fund[k], 0)
-                else:
-                    ivoter = int(fund[k], 0)
+        for k, v in funds.items():
+            if k == "iprep":
+                iprep = int(v, 0)
+            elif k == "icps":
+                icps = int(v, 0)
+            elif k == "irelay":
+                irelay = int(v, 0)
+            else:
+                ivoter = int(v, 0)
         self.set_reward_fund_allocation(iprep, icps, irelay, ivoter)
         self.RewardFundAllocationChanged(iprep, icps, irelay, ivoter)
