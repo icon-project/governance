@@ -736,16 +736,19 @@ class Governance(IconSystemScoreBase):
     def _validate_step_costs_proposal(value: dict) -> bool:
         if isinstance(value, dict) is False:
             return False
-        if isinstance(value["costs"], dict) is False:
-            return False
-        for k, v in value["costs"].items():
-            if k not in ALL_STEP_TYPES:
+        try:
+            costs = value["costs"]
+            if isinstance(costs, dict) is False:
                 return False
-            try:
+            for k, v in costs.items():
+                if k not in ALL_STEP_TYPES:
+                    return False
                 int(v, 0)
-            except ValueError:
-                return False
-        return True
+            return True
+        except KeyError:
+            return False
+        except ValueError:
+            return False
 
     def _validate_reward_fund_setting_proposal(self, value: dict) -> bool:
         iglobal = int(value['iglobal'], 0)

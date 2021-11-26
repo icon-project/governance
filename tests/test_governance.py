@@ -16,59 +16,59 @@ import unittest
 
 from governance.governance import *
 
+STEP_COSTS_v0 = {
+    STEP_TYPE_DEFAULT: 100_000,
+    STEP_TYPE_INPUT: 200,
+    STEP_TYPE_CONTRACT_CALL: 25_000,
+    STEP_TYPE_CONTRACT_CREATE: 1_000_000_000,
+    STEP_TYPE_CONTRACT_UPDATE: 1_600_000_000,
+    STEP_TYPE_CONTRACT_DESTRUCT: -70_000,
+    STEP_TYPE_CONTRACT_SET: 30_000,
+    STEP_TYPE_GET: 0,
+    STEP_TYPE_SET: 320,
+    STEP_TYPE_REPLACE: 80,
+    STEP_TYPE_DELETE: -240,
+    STEP_TYPE_EVENT_LOG: 100,
+    STEP_TYPE_API_CALL: 10_000
+}
+
+STEP_COSTS_v1 = {
+    STEP_TYPE_SCHEMA: 1,
+    # old types
+    STEP_TYPE_DEFAULT: 100_000,
+    STEP_TYPE_INPUT: 200,
+    STEP_TYPE_CONTRACT_CALL: 25_000,
+    STEP_TYPE_CONTRACT_CREATE: 1_000_000_000,
+    STEP_TYPE_CONTRACT_UPDATE: 1_000_000_000,
+    STEP_TYPE_CONTRACT_SET: 15_000,
+    STEP_TYPE_GET: 80,
+    STEP_TYPE_SET: 320,
+    STEP_TYPE_DELETE: -240,
+    STEP_TYPE_API_CALL: 10_000,
+    # new types
+    STEP_TYPE_GET_BASE: 3_000,
+    STEP_TYPE_SET_BASE: 10_000,
+    STEP_TYPE_DELETE_BASE: 200,
+    STEP_TYPE_LOG_BASE: 5_000,
+    STEP_TYPE_LOG: 100,
+    # remove
+    STEP_TYPE_CONTRACT_DESTRUCT: 0,
+    STEP_TYPE_REPLACE: 0,
+    STEP_TYPE_EVENT_LOG: 0
+}
+
 
 class TestGovernance(unittest.TestCase):
 
-    def setUp(self):
-        self.step_costs_v0 = {
-            STEP_TYPE_DEFAULT: 100_000,
-            STEP_TYPE_CONTRACT_CALL: 25_000,
-            STEP_TYPE_CONTRACT_CREATE: 1_000_000_000,
-            STEP_TYPE_CONTRACT_UPDATE: 1_600_000_000,
-            STEP_TYPE_CONTRACT_DESTRUCT: -70_000,
-            STEP_TYPE_CONTRACT_SET: 30_000,
-            STEP_TYPE_GET: 0,
-            STEP_TYPE_SET: 320,
-            STEP_TYPE_REPLACE: 80,
-            STEP_TYPE_DELETE: -240,
-            STEP_TYPE_INPUT: 200,
-            STEP_TYPE_EVENT_LOG: 100,
-            STEP_TYPE_API_CALL: 10_000
-        }
-        self.step_costs_v1 = {
-            STEP_TYPE_SCHEMA: 1,
-            # old types
-            STEP_TYPE_DEFAULT: 1_000_000,
-            STEP_TYPE_INPUT: 2_000,
-            STEP_TYPE_CONTRACT_CALL: 100_000,
-            STEP_TYPE_CONTRACT_CREATE: 1_000_000_000,
-            STEP_TYPE_CONTRACT_UPDATE: 1_000_000_000,
-            STEP_TYPE_CONTRACT_SET: 23_000,
-            STEP_TYPE_GET: 80,
-            STEP_TYPE_SET: 320,
-            STEP_TYPE_DELETE: -240,
-            STEP_TYPE_API_CALL: 10_000,
-            # new types
-            STEP_TYPE_GET_BASE: 3_000,
-            STEP_TYPE_SET_BASE: 10_000,
-            STEP_TYPE_DELETE_BASE: 4_000,
-            STEP_TYPE_LOG_BASE: 5_000,
-            STEP_TYPE_LOG: 200,
-            # remove
-            STEP_TYPE_CONTRACT_DESTRUCT: 0,
-            STEP_TYPE_REPLACE: 0,
-            STEP_TYPE_EVENT_LOG: 0
-        }
-
     def test_validate_step_costs_proposal(self):
         costs_v0 = {}
-        for k, v in self.step_costs_v0.items():
+        for k, v in STEP_COSTS_v0.items():
             costs_v0[k] = hex(v)
         value0 = {'costs': costs_v0}
         self.assertTrue(Governance._validate_step_costs_proposal(value0))
 
         costs_v1 = {}
-        for k, v in self.step_costs_v1.items():
+        for k, v in STEP_COSTS_v1.items():
             costs_v1[k] = hex(v)
         value1 = {'costs': costs_v1}
         self.assertTrue(Governance._validate_step_costs_proposal(value1))
