@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import unittest
 
 from governance.governance import *
@@ -63,6 +64,14 @@ TEST_ALLOCATION = {
     "irelay": 0x1a,
     "ivoter":  0x1b
 }
+
+
+def get_step_costs_v1_value_in_hex():
+    costs_v1 = {}
+    for k, v in STEP_COSTS_v1.items():
+        costs_v1[k] = hex(v)
+    value = {'costs': costs_v1}
+    return '0x' + bytes.hex(json.dumps(value).encode())
 
 
 class TestGovernance(unittest.TestCase):
