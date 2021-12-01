@@ -19,7 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 TAG = 'Governance'
 DEBUG = False
 
@@ -755,7 +755,9 @@ class Governance(IconSystemScoreBase):
         if not isinstance(iglobal, int):
             return False
 
-        self.validate_reward_fund(iglobal)
+        revision: int = self.get_icon_network_value(IconNetworkValueType.REVISION_CODE)
+        if revision != 13:
+            self.validate_reward_fund(iglobal)
 
         return True
 
