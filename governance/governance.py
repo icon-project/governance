@@ -17,7 +17,7 @@
 from iconservice import *
 from iconservice.iconscore.system import *
 
-from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType
+from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType, MAX_GET_PROPOSALS_SIZE
 
 VERSION = '1.2.1'
 TAG = 'Governance'
@@ -637,14 +637,14 @@ class Governance(IconSystemScoreBase):
         return proposal_info
 
     @external(readonly=True)
-    def getProposals(self, type: int = None, status: int = None) -> dict:
+    def getProposals(self, type: int = None, status: int = None, start: int = 0, size: int = MAX_GET_PROPOSALS_SIZE) -> dict:
         """ Get all of proposals in list
 
         :param type: type of network proposal to filter (optional)
         :param status: status of network proposal to filter (optional)
         :return: proposal list in dict
         """
-        return self._network_proposal.get_proposals(self.block_height, type, status)
+        return self._network_proposal.get_proposals(self.block_height, type, status, start, size)
 
     @staticmethod
     def _check_main_prep(address: 'Address', main_preps: list) -> bool:

@@ -1,5 +1,7 @@
 from iconservice import *
 
+MAX_GET_PROPOSALS_SIZE = 10
+
 
 class NetworkProposalType:
     TEXT = 0
@@ -207,7 +209,7 @@ class NetworkProposal:
         result = self._generate_proposal_info_in_dict_for_get_proposal(proposal_info)
         return result
 
-    def get_proposals(self, current_block_height: int, type: int = None, status: int = None) -> dict:
+    def get_proposals(self, current_block_height: int, type: int = None, status: int = None, start: int = 0, size: int = MAX_GET_PROPOSALS_SIZE) -> dict:
         """ Get proposal list to be filtered by type and status
 
         :param current_block_height: current block height
@@ -221,9 +223,19 @@ class NetworkProposal:
         if status is not None and not self._validate_proposal_status(status):
             revert(f"Invalid status parameter: {status}")
 
+        total_proposals = len(self._proposal_list_keys)
+        if total_proposals == 0:
+            return {"proposals": []}
+
+        self._validate_proposal_index(start, size, total_proposals - 1)
+
+        start_idx = total_proposals - start - 1
+        count = min(MAX_GET_PROPOSALS_SIZE, size, total_proposals - start)
+
         proposals = []
-        for id in self._proposal_list_keys:
-            proposal_info = ProposalInfo.from_bytes(self._proposal_list[id])
+        for i in range(count):
+            hash = self._proposal_list_keys.get(start_idx-i)
+            proposal_info = ProposalInfo.from_bytes(self._proposal_list[hash])
 
             if proposal_info.end_block_height < current_block_height:
                 if proposal_info.status == NetworkProposalStatus.VOTING:
@@ -254,6 +266,15 @@ class NetworkProposal:
     @staticmethod
     def _validate_vote_type(type_: int):
         return True if NetworkProposalVote.MIN <= type_ <= NetworkProposalVote.MAX else False
+
+    @staticmethod
+    def _validate_proposal_index(start: int, size: int, max_index: int):
+        if start < 0:
+            revert(f"Invalid start parameter: {start}")
+        if size <= 0:
+            revert(f"Invalid size parameter: {size}")
+        if start > max_index:
+            revert(f"Invalid start parameter: Out of index {start} > {max_index}")
 
     def _check_registered_proposal(self, id: bytes) -> bool:
         """ Check if the proposal with ID have already registered
