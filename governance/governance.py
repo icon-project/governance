@@ -19,7 +19,7 @@ from iconservice.iconscore.system import *
 
 from .network_proposal import NetworkProposal, NetworkProposalType, MaliciousScoreType, MAX_GET_PROPOSALS_SIZE
 
-VERSION = '1.2.1'
+VERSION = '1.2.2'
 TAG = 'Governance'
 DEBUG = False
 
