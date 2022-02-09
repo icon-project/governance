@@ -715,14 +715,16 @@ None
 
 ## getProposals
 
-* Query all of the network proposals.
+* Query the network proposals.
 
 ### Parameters
 
-| Key    | Value Type       | Description                    |
-| :----- | :--------------- | ------------------------------ |
-| type   | [T\_INT](#T_INT) | Type for querying (optional)   |
-| status | [T\_INT](#T_INT) | Status for querying (optional) |
+| Key    | Value Type       | Description                                                                 |
+|:-------| :--------------- |-----------------------------------------------------------------------------|
+| type   | [T\_INT](#T_INT) | Type for querying (optional)                                                |
+| status | [T\_INT](#T_INT) | Status for querying (optional)                                              |
+| start  | [T\_INT](#T_INT) | Starting index for querying. Default is 0, which means the latest (optional) |
+| size   | [T\_INT](#T_INT) | Size for querying. Default and maximum is 10 (optional)                     |
 
 ### Returns
 
@@ -747,7 +749,9 @@ None
             "method": "getProposals",
             "params": {
                 "type": "0x3",
-                "status": "0x0"
+                "status": "0x0",
+                "start": "0x1",
+                "size": "0x3"
             }
         }
     }

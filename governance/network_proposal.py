@@ -210,11 +210,13 @@ class NetworkProposal:
         return result
 
     def get_proposals(self, current_block_height: int, type: int = None, status: int = None, start: int = 0, size: int = MAX_GET_PROPOSALS_SIZE) -> dict:
-        """ Get proposal list to be filtered by type and status
+        """ Get proposal list filtered by type, status, start and size
 
         :param current_block_height: current block height
         :param type: type of network proposal to filter (optional)
         :param status: status of network proposal to filter (optional)
+        :param start: starting index of network proposal to filter. Default is 0, which means the latest (optional)
+        :param size: size of network proposal to filter. Default and maximum is 10 (optional)
         :return: the proposal info list in result format in dict
         """
         if type is not None and not self._validate_proposal_type(type):

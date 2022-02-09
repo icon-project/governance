@@ -638,10 +638,12 @@ class Governance(IconSystemScoreBase):
 
     @external(readonly=True)
     def getProposals(self, type: int = None, status: int = None, start: int = 0, size: int = MAX_GET_PROPOSALS_SIZE) -> dict:
-        """ Get all of proposals in list
+        """ Get a list of proposals filtered by type, status, start and size
 
         :param type: type of network proposal to filter (optional)
         :param status: status of network proposal to filter (optional)
+        :param start: starting index of network proposal to filter. Default is 0, which means the latest (optional)
+        :param size: size of network proposal to filter. Default and maximum is 10 (optional)
         :return: proposal list in dict
         """
         return self._network_proposal.get_proposals(self.block_height, type, status, start, size)
